@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Exam Result — AI Exam Analyzer{% endblock %}
+
+{% block extra_head %}
+<style>
+    .result-wrap { max-width: 800px; margin: 0 auto; }
+    .score-card {
+        background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+        padding: 40px; text-align: center; margin-bottom: 24px;
+        background: linear-gradient(135deg, var(--surface), #0f1e35);
+    }
+    .score-circle {
+        width: 140px; height: 140px; border-radius: 50%; margin: 0 auto 20px;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        border: 6px solid var(--accent); background: rgba(59,130,246,.08);
+    }
+    .score-num { font-family:'Syne',sans-serif; font-size:42px; font-weight:800; color:var(--accent); }
+    .score-denom { font-size:16px; color:var(--muted); }
+    .grade-badge {
+        display:inline-block; padding:6px 20px; border-radius:20px; font-weight:700; font-size:15px; margin-bottom:12px;
+    }
+    .grade-excellent { background:rgba(16,185,129,.15); color:#10b981; }
+    .grade-good      { background:rgba(59,130,246,.15);  color:#3b82f6; }
+    .grade-average   { background:rgba(245,158,11,.15);  color:#f59e0b; }
+    .grade-poor      { background:rgba(239,68,68,.15);   color:#ef4444; }
+    .score-card h2 { font-family:'Syne',sans-serif; font-size:22px; margin-bottom:6px; }
+    .score-card p { color:var(--muted); }
+
+    .wrong-card {
+        background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px; margin-bottom:16px;
+    }
+    .wrong-card .wrong-q { font-family:'Syne',sans-serif; font-size:16px; font-weight:700; margin-bottom:14px; }
+    .answer-row { display:flex; gap:8px; margin-bottom:10px; align-items:flex-start; }
+    .answer-row .tag { flex-shrink:0; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; }
+    .tag-wrong   { background:rgba(239,68,68,.1);   color:#ef4444; }
+    .tag-correct { background:rgba(16,185,129,.1);  color:#10b981; }
+    .rec-box {
+        background:rgba(59,130,246,.06); border:1px solid rgba(59,130,246,.15);
+        border-radius:10px; padding:12px 14px; margin-top:12px; font-size:13px; color:var(--muted);
+        display:flex; gap:8px;
+    }
+    .rec-box i { color:var(--accent); flex-shrink:0; margin-top:1px; }
+    .action-bar { display:flex; gap:14px; justify-content:center; margin-top:24px; flex-wrap:wrap; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include "_sidebar.html" with context %}
+
+<div class="main">
+    <div class="page-header">
+        <h1>📊 Exam Result</h1>
+        <p>Here's a detailed breakdown of your performance</p>
+    </div>
+
+    <div class="result-wrap">
+        <!-- Score Card -->
+        <div class="score-card" style="cursor:pointer;" onclick="alert('How it is calculated:\n\nYou got {{ score }} correct answers out of {{ total }} questions.\n\nPercentage = ({{ score }} / {{ total }}) × 100 = {{ percentage }}%')" title="Click to view calculation">
+            <div class="score-circle">
+                <div class="score-num">{{ score }}</div>
+                <div class="score-denom">/ {{ total }}</div>
+            </div>
+            {% if grade == 'Excellent' %}
+                <div class="grade-badge grade-excellent">🏆 {{ grade }}</div>
+            {% elif grade == 'Good' %}
+                <div class="grade-badge grade-good">👍 {{ grade }}</div>
+            {% elif grade == 'Average' %}
+                <div class="grade-badge grade-average">📚 {{ grade }}</div>
+            {% else %}
+                <div class="grade-badge grade-poor">💪 {{ grade }}</div>
+            {% endif %}
+            <h2>You scored {{ percentage }}%</h2>
+            <p>
+                {% if percentage >= 80 %}Outstanding! Keep up the great work.
+                {% elif percentage >= 60 %}Good effort! A bit more practice and you'll ace it.
+                {% elif percentage >= 40 %}You're getting there. Focus on your weak areas.
+                {% else %}Don't give up! Review the topics below and try again.
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Wrong Answers Detail -->
+        {% if wrong_details %}
+        <div class="panel" style="margin-bottom:20px;">
+            <div class="panel-title"><i class="fa-solid fa-circle-xmark" style="color:#ef4444;"></i> Questions You Got Wrong</div>
+            {% for item in wrong_details %}
+            <div class="wrong-card">
+                <div class="wrong-q">{{ loop.index }}. {{ item.question }}</div>
+                <div class="answer-row">
+                    <div class="tag tag-wrong">Your Answer</div>
+                    <div>{{ item.your_answer }}</div>
+                </div>
+                <div class="answer-row">
+                    <div class="tag tag-correct">Correct Answer</div>
+                    <div>{{ item.correct_answer }}</div>
+                </div>
+                {% if item.recommendation %}
+                <div class="rec-box">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    <span><strong>Tip:</strong> {{ item.recommendation }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="panel" style="margin-bottom:20px;text-align:center;padding:40px;">
+            <i class="fa-solid fa-trophy" style="font-size:40px;color:#f59e0b;margin-bottom:12px;display:block;"></i>
+            <h3 style="font-family:'Syne',sans-serif;margin-bottom:8px;">Perfect Score!</h3>
+            <p style="color:var(--muted);">You answered all questions correctly. Excellent work!</p>
+        </div>
+        {% endif %}
+
+        <!-- Weak Topics Summary -->
+        {% if unique_weak %}
+        <div class="panel" style="margin-bottom:24px;">
+            <div class="panel-title"><i class="fa-solid fa-triangle-exclamation"></i> Topics to Review</div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                {% for t in unique_weak %}
+                <span class="badge badge-amber">{{ t }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="action-bar">
+            <a href="/dashboard" class="btn btn-outline"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+            <a href="/exam" class="btn btn-primary"><i class="fa-solid fa-rotate-right"></i> Retake Exam</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

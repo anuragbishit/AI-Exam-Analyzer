@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Global Leaderboard — AI Exam Analyzer{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    .leaderboard-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 24px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    
+    .leaderboard-table th, .leaderboard-table td {
+        padding: 16px 20px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+    }
+    
+    .leaderboard-table th {
+        background: var(--surface2);
+        color: var(--muted);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+    
+    .leaderboard-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .leaderboard-table tbody tr {
+        transition: background 0.2s;
+    }
+    
+    .leaderboard-table tbody tr:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    
+    .rank-cell {
+        font-family: 'Syne', sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+    }
+    
+    .rank-1 { color: #f59e0b; } /* Gold */
+    .rank-2 { color: #94a3b8; } /* Silver */
+    .rank-3 { color: #b45309; } /* Bronze */
+    
+    .score-cell {
+        color: var(--accent);
+        font-weight: 700;
+        font-family: 'Fira Code', monospace;
+    }
+
+    /* Adjust main content if not logged in */
+    .main.no-sidebar {
+        margin-left: 0;
+        padding-top: 60px;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% if session.get('student_id') %}
+    {% include "_sidebar.html" %}
+    <div class="main">
+{% else %}
+    <div class="main no-sidebar">
+{% endif %}
+
+    <div class="page-header">
+        {% if session.get('student_id') %}
+        <a href="/dashboard" class="back" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:var(--muted); font-size:13px; margin-bottom:16px;"><i class="fa-solid fa-arrow-left"></i> Back to dashboard</a>
+        {% else %}
+        <a href="/login" class="back" style="display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:var(--muted); font-size:13px; margin-bottom:16px;"><i class="fa-solid fa-arrow-left"></i> Back to login</a>
+        {% endif %}
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div>
+                <h1>🏆 Global Leaderboard</h1>
+                <p>See how you stack up against students worldwide.</p>
+            </div>
+            {% if session.get('mode') == 'global' %}
+            <a href="/exam" class="btn" style="padding: 10px 20px; border-radius: 8px; background: var(--accent); color: white; text-decoration: none; font-weight: 600; font-size: 14px; font-family: 'DM Sans', sans-serif;"><i class="fa-solid fa-pen-to-square"></i> Take Global Exam</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if students %}
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Student Name</th>
+                    <th>Exams Taken</th>
+                    <th>Total Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr {% if session.get('student_id') == student.id %}style="background: rgba(59, 130, 246, 0.1);"{% endif %}>
+                    <td class="rank-cell 
+                        {% if loop.index == 1 %}rank-1{% endif %}
+                        {% if loop.index == 2 %}rank-2{% endif %}
+                        {% if loop.index == 3 %}rank-3{% endif %}
+                    ">
+                        #{{ loop.index }}
+                        {% if loop.index == 1 %}👑{% endif %}
+                    </td>
+                    <td>
+                        <div style="font-weight: 500;">{{ student.name }}</div>
+                        {% if session.get('student_id') == student.id %}
+                        <div style="font-size: 11px; color: var(--accent); margin-top: 4px;">You</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ student.exams_taken }}</td>
+                    <td class="score-cell">{{ student.total_score }} / {{ student.total_qs }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="panel" style="text-align: center; padding: 60px 20px;">
+            <i class="fa-solid fa-ranking-star" style="font-size: 48px; color: var(--muted); margin-bottom: 16px;"></i>
+            <h3 style="margin-bottom: 8px;">No data yet</h3>
+            <p style="color: var(--muted);">Be the first one to take an exam and top the leaderboard!</p>
+        </div>
+    {% endif %}
+
+</div>
+
+{% endblock %}

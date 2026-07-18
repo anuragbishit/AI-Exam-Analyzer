@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Profile — AI Exam Analyzer{% endblock %}
+
+{% block extra_head %}
+<style>
+    .profile-wrap { max-width:600px; }
+    .profile-header {
+        background:var(--surface); border:1px solid var(--border); border-radius:20px;
+        padding:32px; display:flex; align-items:center; gap:24px; margin-bottom:24px;
+    }
+    .avatar-lg {
+        width:72px; height:72px; border-radius:50%;
+        background:linear-gradient(135deg,var(--accent),var(--accent2));
+        display:flex; align-items:center; justify-content:center;
+        font-family:'Syne',sans-serif; font-size:28px; font-weight:800; flex-shrink:0;
+    }
+    .profile-info h2 { font-family:'Syne',sans-serif; font-size:22px; }
+    .profile-info p { color:var(--muted); font-size:14px; margin-top:4px; }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include "_sidebar.html" with context %}
+
+<div class="main">
+    <div class="page-header">
+        <h1>👤 Profile</h1>
+        <p>Update your personal information</p>
+    </div>
+
+    <div class="profile-wrap">
+        <div class="profile-header">
+            <div class="avatar-lg">{{ student['name'][0].upper() }}</div>
+            <div class="profile-info">
+                <h2>{{ student['name'] }}</h2>
+                <p>{{ student['email'] }}</p>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="alert alert-success"><i class="fa-solid fa-check-circle"></i> {{ success }}</div>
+        {% endif %}
+
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-pen"></i> Edit Profile</div>
+            <form method="POST">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" value="{{ student['name'] }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Email (cannot change)</label>
+                    <input type="email" value="{{ student['email'] }}" disabled style="opacity:.5;cursor:not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Current Password <span style="color:var(--danger);">*</span></label>
+                    <input type="password" name="old_password" placeholder="Required to save changes" required>
+                </div>
+                <div class="form-group">
+                    <label>New Password <span style="color:var(--muted);font-size:11px;">(leave blank to keep current)</span></label>
+                    <input type="password" name="new_password" placeholder="Min. 6 characters" minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+<div class="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-icon">🧠</div>
+        <div>
+            <span>AI Exam<br>Analyzer</span>
+        </div>
+    </div>
+
+    <div class="nav-label">Menu</div>
+
+    {% if session.get('mode') != 'global' %}
+    <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">
+        <i class="fa-solid fa-chart-pie"></i> Dashboard
+    </a>
+    <a href="/exam" class="nav-link {% if request.path == '/exam' %}active{% endif %}">
+        <i class="fa-solid fa-pen-to-square"></i> Take Practice Exam
+    </a>
+    {% endif %}
+    
+    <a href="/global_leaderboard" class="nav-link {% if request.path == '/global_leaderboard' %}active{% endif %}">
+        <i class="fa-solid fa-trophy"></i> Global Leaderboard
+    </a>
+    <a href="/profile" class="nav-link {% if request.path == '/profile' %}active{% endif %}">
+        <i class="fa-solid fa-user"></i> Profile
+    </a>
+
+    <div class="sidebar-bottom">
+        <div class="user-pill">
+            <div class="avatar">{{ session['student_name'][0].upper() }}</div>
+            <div class="user-info">
+                <div class="uname">{{ session['student_name'] }}</div>
+                <div class="urole">Student</div>
+            </div>
+        </div>
+        <a href="/logout" class="logout-link">
+            <i class="fa-solid fa-right-from-bracket"></i> Logout
+        </a>
+    </div>
+</div>

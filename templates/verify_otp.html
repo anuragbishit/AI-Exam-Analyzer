@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP — AI Exam Analyzer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root { --bg:#0b0f1a; --surface:#111827; --surface2:#1a2235; --border:#1f2d45; --accent:#3b82f6; --text:#f1f5f9; --muted:#64748b; --danger:#ef4444; --success:#10b981; }
+        *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+        body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; align-items:center; justify-content:center; }
+        .glow { position:fixed; width:500px; height:500px; border-radius:50%; background:radial-gradient(circle,rgba(59,130,246,.1) 0%,transparent 70%); top:-150px; left:-150px; pointer-events:none; }
+        .card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:48px 40px; width:100%; max-width:420px; position:relative; z-index:1; }
+        .back { display:flex; align-items:center; gap:6px; text-decoration:none; color:var(--muted); font-size:13px; margin-bottom:28px; transition:color .2s; }
+        .back:hover { color:var(--text); }
+        h1 { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; margin-bottom:6px; }
+        .sub { color:var(--muted); font-size:14px; margin-bottom:32px; }
+        .alert { padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+        .alert-error   { background:rgba(239,68,68,.1);  border:1px solid rgba(239,68,68,.25);  color:#fca5a5; }
+        .alert-info    { background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.25); color:#93c5fd; }
+        .form-group { margin-bottom:18px; }
+        label { display:block; font-size:13px; font-weight:500; color:var(--muted); margin-bottom:8px; }
+        .input-wrap { position:relative; }
+        .input-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:14px; }
+        input { width:100%; padding:12px 14px 12px 40px; border-radius:10px; background:var(--surface2); border:1px solid var(--border); color:var(--text); font-size:14px; font-family:'DM Sans',sans-serif; outline:none; transition:border-color .2s; letter-spacing: 4px; font-weight: bold; }
+        input:focus { border-color:var(--accent); }
+        .btn { width:100%; padding:13px; border-radius:10px; background:var(--accent); color:white; font-size:15px; font-weight:600; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; transition:background .2s; margin-top:8px; }
+        .btn:hover { background:#2563eb; }
+    </style>
+</head>
+<body>
+    <div class="glow"></div>
+    <div class="card">
+        <a href="/login" class="back"><i class="fa-solid fa-arrow-left"></i> Back to login</a>
+
+        {% if error %}
+        <div class="alert alert-error"><i class="fa-solid fa-circle-exclamation"></i> {{ error }}</div>
+        {% endif %}
+        
+        {% if demo_otp %}
+        <div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> [DEMO] Your OTP is: {{ demo_otp }}</div>
+        {% endif %}
+
+        <h1>Verify Email</h1>
+        <p class="sub">Enter the 6-digit code sent to your email.</p>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>One-Time Password (OTP)</label>
+                <div class="input-wrap">
+                    <i class="fa-solid fa-key input-icon"></i>
+                    <input type="text" name="otp" placeholder="••••••" maxlength="6" required>
+                </div>
+            </div>
+            <button type="submit" class="btn">Verify <i class="fa-solid fa-check"></i></button>
+        </form>
+    </div>
+</body>
+</html>

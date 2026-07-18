@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Detailed Statistics — AI Exam Analyzer{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+    .math-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .math-card-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: 'Syne', sans-serif;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+    .math-card-header .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+    }
+
+    .formula-box {
+        background: rgba(0, 0, 0, 0.2);
+        border-left: 4px solid var(--accent);
+        padding: 16px;
+        border-radius: 0 12px 12px 0;
+        font-family: 'Fira Code', monospace;
+        font-size: 15px;
+        color: var(--text);
+        letter-spacing: 0.5px;
+    }
+
+    .formula-explanation {
+        color: var(--muted);
+        line-height: 1.6;
+        font-size: 14px;
+    }
+
+    .calculation-steps {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 8px;
+    }
+
+    .step-box {
+        background: var(--surface2);
+        padding: 12px 16px;
+        border-radius: 12px;
+        text-align: center;
+        min-width: 100px;
+    }
+
+    .step-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--accent);
+        font-family: 'Syne', sans-serif;
+        margin-bottom: 4px;
+    }
+
+    .step-label {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .step-math {
+        font-size: 20px;
+        color: var(--muted);
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include "_sidebar.html" with context %}
+
+<div class="main">
+    <div class="page-header">
+        <h1><a href="/dashboard" style="color:var(--muted); text-decoration:none;"><i
+                    class="fa-solid fa-arrow-left"></i></a> Detailed Statistics</h1>
+        <p>Mathematical breakdown of your performance metrics</p>
+    </div>
+
+    <!-- Exams Taken -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(59,130,246,0.15); color:#3b82f6;">
+                <i class="fa-solid fa-book"></i>
+            </div>
+            Exams Taken
+        </div>
+        <div class="formula-explanation">
+            This is a simple count of all the exams you have successfully completed and submitted.
+        </div>
+        <div class="calculation-steps">
+            <div class="step-box">
+                <div class="step-value">{{ tests_taken }}</div>
+                <div class="step-label">Total Exams</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Average Score -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(16,185,129,0.15); color:#10b981;">
+                <i class="fa-solid fa-percent"></i>
+            </div>
+            Cumulative Average Score
+        </div>
+        <div class="formula-explanation">
+            To ensure fairness, your average score is calculated by summing all your correctly answered questions and
+            dividing by the total number of questions across <strong>all</strong> exams. This prevents shorter exams
+            from disproportionately affecting your average.
+        </div>
+        <div class="formula-box">
+            Average = ( Σ Correct Answers / Σ Total Questions ) × 100
+        </div>
+        <div class="calculation-steps">
+            <div class="step-box">
+                <div class="step-value">{{ total_score }}</div>
+                <div class="step-label">Total Correct</div>
+            </div>
+            <div class="step-math">÷</div>
+            <div class="step-box">
+                <div class="step-value">{{ total_qs }}</div>
+                <div class="step-label">Total Questions</div>
+            </div>
+            <div class="step-math">× 100 =</div>
+            <div class="step-box" style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3);">
+                <div class="step-value" style="color:#10b981;">{{ average_score }}%</div>
+                <div class="step-label">True Average</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Best Score -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(168,85,247,0.15); color:#a855f7;">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            Best Score
+        </div>
+        <div class="formula-explanation">
+            This represents your highest percentage score achieved in any single exam session.
+        </div>
+        <div class="formula-box">
+            Best Score = MAX( (Correct Answers / Total Questions) × 100 )
+        </div>
+        <div class="calculation-steps">
+            <div class="step-box" style="background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.3);">
+                <div class="step-value" style="color:#a855f7;">{{ best_score }}%</div>
+                <div class="step-label">Highest Score</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weak Topic Hits -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            Weak Topic Hits
+        </div>
+        <div class="formula-explanation">
+            Every time you answer a question incorrectly, its topic is recorded. The total hits represent the sum of all
+            such occurrences across all exams.
+        </div>
+        <div class="formula-box">
+            Total Hits = Σ (Frequency of each incorrect topic)
+        </div>
+        <div class="calculation-steps">
+            {% for topic, count in topic_counts.items() %}
+            <div class="step-box" style="min-width:auto; padding:8px 12px;">
+                <div class="step-value" style="font-size:16px;">{{ count }}</div>
+                <div class="step-label">{{ topic }}</div>
+            </div>
+            {% if not loop.last %}
+            <div class="step-math" style="font-size:14px;">+</div>
+            {% endif %}
+            {% endfor %}
+            {% if topic_counts %}
+            <div class="step-math" style="font-size:14px;">=</div>
+            {% endif %}
+            <div class="step-box" style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3);">
+                <div class="step-value" style="color:#f59e0b;">{{ total_weak }}</div>
+                <div class="step-label">Total Hits</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

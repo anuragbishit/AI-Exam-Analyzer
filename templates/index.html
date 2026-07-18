@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>AI Exam Analyzer — Home</title>
+
+    <!-- GOOGLE FONTS -->
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+          rel="stylesheet">
+
+    <!-- FONT AWESOME -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <style>
+
+        :root{
+
+            --bg:#0b0f1a;
+
+            --accent:#3b82f6;
+
+            --accent2:#6366f1;
+
+            --text:#f1f5f9;
+
+            --muted:#64748b;
+
+            --surface:#111827;
+
+            --border:#1f2d45;
+        }
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body{
+
+            font-family:'DM Sans',sans-serif;
+
+            background:var(--bg);
+
+            color:var(--text);
+
+            min-height:100vh;
+
+            overflow-x:hidden;
+        }
+
+        /* =========================
+           BACKGROUND EFFECTS
+        ========================== */
+
+        .noise{
+
+            position:fixed;
+
+            inset:0;
+
+            z-index:0;
+
+            background-image:url(
+                "data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"
+            );
+
+            pointer-events:none;
+        }
+
+        .glow{
+
+            position:fixed;
+
+            width:600px;
+
+            height:600px;
+
+            border-radius:50%;
+
+            background:radial-gradient(
+                circle,
+                rgba(59,130,246,.12) 0%,
+                transparent 70%
+            );
+
+            top:-200px;
+
+            left:-100px;
+
+            z-index:0;
+
+            pointer-events:none;
+        }
+
+        .glow2{
+
+            position:fixed;
+
+            width:400px;
+
+            height:400px;
+
+            border-radius:50%;
+
+            background:radial-gradient(
+                circle,
+                rgba(99,102,241,.08) 0%,
+                transparent 70%
+            );
+
+            bottom:-100px;
+
+            right:-100px;
+
+            z-index:0;
+
+            pointer-events:none;
+        }
+
+        /* =========================
+           NAVBAR
+        ========================== */
+
+        .nav{
+
+            position:relative;
+
+            z-index:10;
+
+            display:flex;
+
+            justify-content:space-between;
+
+            align-items:center;
+
+            padding:24px 60px;
+
+            border-bottom:1px solid var(--border);
+        }
+
+        .logo{
+
+            font-family:'Syne',sans-serif;
+
+            font-weight:800;
+
+            font-size:20px;
+
+            display:flex;
+
+            align-items:center;
+
+            gap:10px;
+        }
+
+        .logo .dot{
+
+            width:10px;
+
+            height:10px;
+
+            border-radius:50%;
+
+            background:var(--accent);
+        }
+
+        .nav-links{
+
+            display:flex;
+
+            gap:12px;
+        }
+
+        .btn-nav{
+
+            padding:9px 20px;
+
+            border-radius:8px;
+
+            font-size:14px;
+
+            font-weight:500;
+
+            text-decoration:none;
+
+            transition:all .2s;
+        }
+
+        .btn-ghost{
+
+            color:var(--muted);
+        }
+
+        .btn-ghost:hover{
+
+            color:var(--text);
+        }
+
+        .btn-fill{
+
+            background:var(--accent);
+
+            color:white;
+        }
+
+        .btn-fill:hover{
+
+            background:#2563eb;
+        }
+
+        /* =========================
+           HERO SECTION
+        ========================== */
+
+        .hero{
+
+            position:relative;
+
+            z-index:10;
+
+            max-width:800px;
+
+            margin:0 auto;
+
+            text-align:center;
+
+            padding:100px 24px 60px;
+        }
+
+        .chip{
+
+            display:inline-flex;
+
+            align-items:center;
+
+            gap:8px;
+
+            padding:6px 16px;
+
+            border-radius:20px;
+
+            background:rgba(59,130,246,.1);
+
+            border:1px solid rgba(59,130,246,.2);
+
+            color:var(--accent);
+
+            font-size:13px;
+
+            margin-bottom:28px;
+        }
+
+        .hero h1{
+
+            font-family:'Syne',sans-serif;
+
+            font-size:clamp(36px,6vw,64px);
+
+            font-weight:800;
+
+            line-height:1.1;
+
+            margin-bottom:20px;
+        }
+
+        /* FIXED ERROR SECTION */
+
+        .hero h1 span{
+
+            background: linear-gradient(
+                135deg,
+                var(--accent),
+                var(--accent2)
+            );
+
+            background-clip:text;
+
+            -webkit-background-clip:text;
+
+            color:transparent;
+
+            -webkit-text-fill-color:transparent;
+        }
+
+        .hero p{
+
+            font-size:18px;
+
+            color:var(--muted);
+
+            max-width:500px;
+
+            margin:0 auto 40px;
+
+            line-height:1.6;
+        }
+
+        .cta-group{
+
+            display:flex;
+
+            justify-content:center;
+
+            gap:14px;
+
+            flex-wrap:wrap;
+        }
+
+        .btn-cta{
+
+            padding:14px 32px;
+
+            border-radius:12px;
+
+            font-size:16px;
+
+            font-weight:600;
+
+            text-decoration:none;
+
+            display:inline-flex;
+
+            align-items:center;
+
+            gap:8px;
+
+            transition:all .2s;
+        }
+
+        .btn-cta-primary{
+
+            background:var(--accent);
+
+            color:white;
+
+            box-shadow:0 0 30px rgba(59,130,246,.25);
+        }
+
+        .btn-cta-primary:hover{
+
+            transform:translateY(-2px);
+
+            box-shadow:0 0 40px rgba(59,130,246,.4);
+        }
+
+        .btn-cta-secondary{
+
+            background:var(--surface);
+
+            border:1px solid var(--border);
+
+            color:var(--text);
+        }
+
+        .btn-cta-secondary:hover{
+
+            border-color:var(--accent);
+        }
+
+        /* =========================
+           FEATURES
+        ========================== */
+
+        .features{
+
+            position:relative;
+
+            z-index:10;
+
+            display:grid;
+
+            grid-template-columns:repeat(3,1fr);
+
+            gap:20px;
+
+            max-width:1000px;
+
+            margin:0 auto;
+
+            padding:0 24px 80px;
+        }
+
+        .feat-card{
+
+            background:var(--surface);
+
+            border:1px solid var(--border);
+
+            border-radius:16px;
+
+            padding:28px;
+
+            transition:border-color .2s;
+        }
+
+        .feat-card:hover{
+
+            border-color:rgba(59,130,246,.4);
+        }
+
+        .feat-icon{
+
+            width:48px;
+
+            height:48px;
+
+            border-radius:12px;
+
+            margin-bottom:16px;
+
+            display:flex;
+
+            align-items:center;
+
+            justify-content:center;
+
+            font-size:22px;
+        }
+
+        .feat-card h3{
+
+            font-family:'Syne',sans-serif;
+
+            font-size:16px;
+
+            margin-bottom:8px;
+        }
+
+        .feat-card p{
+
+            font-size:14px;
+
+            color:var(--muted);
+
+            line-height:1.6;
+        }
+
+        /* =========================
+           RESPONSIVE
+        ========================== */
+
+        @media(max-width:700px){
+
+            .features{
+                grid-template-columns:1fr;
+            }
+
+            .nav{
+                padding:20px 24px;
+            }
+
+            .hero{
+                padding:70px 20px 40px;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <!-- BACKGROUND -->
+    <div class="noise"></div>
+
+    <div class="glow"></div>
+
+    <div class="glow2"></div>
+
+    <!-- NAVBAR -->
+    <nav class="nav">
+
+        <div class="logo">
+
+            <div class="dot"></div>
+
+            AI Exam Analyzer
+
+        </div>
+
+        <div class="nav-links">
+
+            <a href="/login"
+               class="btn-nav btn-ghost">
+
+                Login
+
+            </a>
+
+            <a href="/signup"
+               class="btn-nav btn-fill">
+
+                Get Started
+
+            </a>
+
+        </div>
+
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+
+        <div class="chip">
+
+            <i class="fa-solid fa-brain"></i>
+
+            AI-Powered Learning
+
+        </div>
+
+        <h1>
+
+            Analyze Your Exam<br>
+
+            <span>Performance with AI</span>
+
+        </h1>
+
+        <p>
+
+            Take smart exams,
+            identify your weak topics,
+            and get personalized recommendations
+            to improve faster.
+
+        </p>
+
+        <div class="cta-group">
+
+            <a href="/signup"
+               class="btn-cta btn-cta-primary">
+
+                <i class="fa-solid fa-rocket"></i>
+
+                Start for Free
+
+            </a>
+
+            <a href="/login"
+               class="btn-cta btn-cta-secondary">
+
+                <i class="fa-solid fa-right-to-bracket"></i>
+
+                Login
+
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- FEATURES -->
+    <div class="features">
+
+        <div class="feat-card">
+
+            <div class="feat-icon"
+                 style="background:rgba(59,130,246,.1);color:#3b82f6;">
+
+                📊
+
+            </div>
+
+            <h3>Performance Dashboard</h3>
+
+            <p>
+                View all your exam history,
+                scores,
+                and trends in one beautiful dashboard.
+            </p>
+
+        </div>
+
+        <div class="feat-card">
+
+            <div class="feat-icon"
+                 style="background:rgba(239,68,68,.1);color:#ef4444;">
+
+                🎯
+
+            </div>
+
+            <h3>Weakness Analysis</h3>
+
+            <p>
+                Identify exactly which topics need more attention
+                based on your answers.
+            </p>
+
+        </div>
+
+        <div class="feat-card">
+
+            <div class="feat-icon"
+                 style="background:rgba(16,185,129,.1);color:#10b981;">
+
+                💡
+
+            </div>
+
+            <h3>Smart Recommendations</h3>
+
+            <p>
+                Get personalized study suggestions
+                tailored to your specific weak areas.
+            </p>
+
+        </div>
+
+    </div>
+
+</body>
+
+</html>

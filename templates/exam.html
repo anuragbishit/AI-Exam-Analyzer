@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Online Exam Builder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a35;
+      --accent: #c8ff00;
+      --accent2: #ff6b35;
+      --text: #f0f0f0;
+      --muted: #7a7a8a;
+      --danger: #ff4757;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    h1, h2, h3, button { font-family: 'Syne', sans-serif; }
+
+    .container { max-width: 820px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .header .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 2px;
+      padding: 5px 14px;
+      border-radius: 99px;
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+    .header h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #fff 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header p { color: var(--muted); margin-top: 10px; font-size: 15px; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 5px;
+      margin-bottom: 32px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      transition: all 0.2s;
+      background: transparent;
+      color: var(--muted);
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
+
+    /* Panels */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: #3a3a50; }
+
+    /* Question builder card */
+    .q-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      position: relative;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
+
+    .q-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .q-number {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .btn-remove {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--danger);
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-remove:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+    label.field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      resize: none;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+    input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .option-label-tag {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Syne', sans-serif;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .correct-row {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .correct-row label.field-label { margin-bottom: 0; }
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 22px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .btn-accent { background: var(--accent); color: #000; }
+    .btn-accent:hover { background: #d4ff1a; transform: translateY(-1px); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #ff2f41; }
+    .btn-big {
+      width: 100%;
+      justify-content: center;
+      padding: 16px;
+      font-size: 15px;
+      margin-top: 10px;
+    }
+
+    .actions-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    /* Exam panel */
+    .exam-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 28px;
+    }
+    .exam-meta .meta-item { text-align: center; }
+    .exam-meta .meta-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .exam-meta .meta-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+    .exam-q-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      animation: fadeIn 0.3s ease;
+    }
+    .exam-q-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .exam-q-title span { color: var(--accent); margin-right: 8px; }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .radio-option:hover { border-color: #3a3a55; background: #1a1a22; }
+    .radio-option.selected { border-color: var(--accent); background: rgba(200,255,0,0.05); }
+    .radio-option input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+    .radio-option .opt-letter {
+      background: var(--border);
+      color: var(--muted);
+      width: 26px; height: 26px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; font-family: 'Syne', sans-serif;
+      flex-shrink: 0;
+    }
+    .radio-option.selected .opt-letter { background: var(--accent); color: #000; }
+
+    /* Result panel */
+    .result-header {
+      text-align: center;
+      padding: 40px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 28px;
+    }
+    .score-circle {
+      width: 120px; height: 120px;
+      border-radius: 50%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      position: relative;
+    }
+    .score-circle.pass { background: rgba(200,255,0,0.1); border: 3px solid var(--accent); }
+    .score-circle.fail { background: rgba(255,71,87,0.1); border: 3px solid var(--danger); }
+    .score-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 32px; font-weight: 800;
+    }
+    .score-circle.pass .score-num { color: var(--accent); }
+    .score-circle.fail .score-num { color: var(--danger); }
+    .score-label { font-size: 12px; color: var(--muted); }
+    .result-header h2 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .result-header p { color: var(--muted); font-size: 14px; }
+
+    .review-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .review-card .rq-title { font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+    .review-card .rq-title span { color: var(--muted); margin-right: 6px; }
+    .answer-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-size: 13px;
+      font-weight: 500;
+      margin: 4px 4px 4px 0;
+    }
+    .chip-correct { background: rgba(200,255,0,0.1); border: 1px solid var(--accent); color: var(--accent); }
+    .chip-wrong { background: rgba(255,71,87,0.1); border: 1px solid var(--danger); color: var(--danger); }
+    .chip-skipped { background: rgba(122,122,138,0.1); border: 1px solid var(--muted); color: var(--muted); }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); padding: 12px 24px; border-radius: 99px;
+      font-size: 14px; font-weight: 500;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
+    .empty-state p { font-size: 14px; }
+
+    @media (max-width: 560px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .exam-meta { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="badge">✦ Exam Builder</div>
+    <h1>Create & Take<br>Your Own Exam</h1>
+    <p>Questions banao, exam do, result dekho — sab ek jagah</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('builder')">📝 Add question </button>
+    <button class="tab-btn" onclick="switchTab('exam')" id="tab-exam">📋 Give Exam</button>
+    <button class="tab-btn" onclick="switchTab('result')" id="tab-result">🏆 Result</button>
+  </div>
+
+  <!-- BUILDER PANEL -->
+  <div class="panel active" id="panel-builder">
+    <div id="questions-container"></div>
+
+    <div class="actions-row">
+      <button class="btn btn-outline" onclick="addQuestion()">＋ Add new Question</button>
+    </div>
+
+    <hr class="divider">
+
+    <button class="btn btn-accent btn-big" onclick="startExam()">🚀 Start Exam</button>
+  </div>
+
+  <!-- EXAM PANEL -->
+  <div class="panel" id="panel-exam">
+    <div style="background: var(--surface2); border: 1px solid var(--accent); padding: 12px 20px; border-radius: var(--radius); text-align: center; margin-bottom: 16px;">
+        <span style="font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 2px;" id="timer-display">00:00</span>
+        <div style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">Time Remaining</div>
+    </div>
+    <div class="exam-meta" id="exam-meta"></div>
+    <div id="exam-questions"></div>
+    <button class="btn btn-accent btn-big" onclick="submitExam()">✅ Submit Exam </button>
+  </div>
+
+  <!-- RESULT PANEL -->
+  <div class="panel" id="panel-result">
+    <div class="result-header" id="result-header"></div>
+    <div id="result-review"></div>
+    <div class="actions-row" style="margin-top:24px;">
+      <button class="btn btn-accent" onclick="retakeExam()">🔄 Retake Exam</button>
+      <a href="/dashboard" class="btn btn-outline">📊 Dashboard</a>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let questions = [];
+  {% if questions %}
+    {% for q in questions %}
+    questions.push({
+      id: {{ loop.index0 }},
+      text: {{ q.question | tojson | safe }},
+      options: {{ q.options | tojson | safe }},
+      correct: {{ q.options.index(q.answer) if q.answer in q.options else 0 }},
+      topic: {{ q.get('topic', 'General') | tojson | safe }},
+      recommendation: {{ q.get('recommendation', '') | tojson | safe }}
+    });
+    {% endfor %}
+  {% endif %}
+
+  let userAnswers = {};
+  
+  let examDurationMinutes = {{ duration | default(10) }};
+  let remainingSeconds = examDurationMinutes * 60;
+  let timerInterval;
+
+  function updateTimerDisplay() {
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    document.getElementById('timer-display').textContent = display;
+    
+    // Add visual warning when < 1 minute left
+    if (remainingSeconds <= 60) {
+      document.getElementById('timer-display').style.color = 'var(--danger)';
+    }
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      remainingSeconds--;
+      updateTimerDisplay();
+      if (remainingSeconds <= 0) {
+        clearInterval(timerInterval);
+        showToast('⚠️ Time is up! Submitting exam automatically.', 3000);
+        submitExam(true); // Force submit
+      }
+    }, 1000);
+  }
+
+  function showToast(msg, duration = 2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    document.querySelectorAll('.tab-btn')[['builder','exam','result'].indexOf(tab)].classList.add('active');
+  }
+
+  function addQuestion() {
+    const id = Date.now();
+    questions.push({
+      id, text: '', options: ['', '', '', ''], correct: 0
+    });
+    renderBuilder();
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.q-text-input');
+      inputs[inputs.length - 1]?.focus();
+    }, 50);
+  }
+
+  function removeQuestion(id) {
+    questions = questions.filter(q => q.id !== id);
+    renderBuilder();
+  }
+
+  function updateQuestion(id, field, value) {
+    const q = questions.find(q => q.id === id);
+    if (!q) return;
+    if (field === 'text') q.text = value;
+    else if (field.startsWith('opt')) {
+      const i = parseInt(field.replace('opt', ''));
+      q.options[i] = value;
+    } else if (field === 'correct') q.correct = parseInt(value);
+  }
+
+  function renderBuilder() {
+    const container = document.getElementById('questions-container');
+    if (questions.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>Koi question nahi hai.<br>Upar button dabao aur pehla question add karo!</p></div>`;
+      return;
+    }
+    container.innerHTML = questions.map((q, idx) => `
+      <div class="q-card" id="qcard-${q.id}">
+        <div class="q-card-header">
+          <span class="q-number">Question ${idx + 1}</span>
+          <button class="btn-remove" onclick="removeQuestion(${q.id})">✕ Hatao</button>
+        </div>
+        <label class="field-label">Sawaal likhiye</label>
+        <textarea
+          class="q-text-input"
+          rows="2"
+          placeholder="Yahan apna sawaal likhiye..."
+          oninput="updateQuestion(${q.id}, 'text', this.value)"
+        >${q.text}</textarea>
+        <div style="margin-top:16px;">
+          <label class="field-label">Options (4 choices)</label>
+          <div class="options-grid">
+            ${['A','B','C','D'].map((letter, i) => `
+              <div class="option-row">
+                <span class="option-label-tag">${letter}</span>
+                <input type="text"
+                  placeholder="Option ${letter}"
+                  value="${q.options[i]}"
+                  oninput="updateQuestion(${q.id}, 'opt${i}', this.value)"
+                />
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="correct-row">
+          <label class="field-label">✓ Sahi jawab:</label>
+          <select onchange="updateQuestion(${q.id}, 'correct', this.value)">
+            ${['A','B','C','D'].map((l, i) => `<option value="${i}" ${q.correct === i ? 'selected' : ''}>Option ${l}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function startExam() {
+    // Validate
+    if (questions.length === 0) {
+      showToast('⚠️ Pehle kuch questions add karo!');
+      return;
+    }
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      if (!q.text.trim()) {
+        showToast(`⚠️ Question ${i+1} ka sawaal khali hai!`);
+        return;
+      }
+      for (let j = 0; j < 4; j++) {
+        if (!q.options[j].trim()) {
+          showToast(`⚠️ Question ${i+1} ka Option ${['A','B','C','D'][j]} khali hai!`);
+          return;
+        }
+      }
+    }
+    userAnswers = {};
+    remainingSeconds = examDurationMinutes * 60;
+    document.getElementById('timer-display').style.color = 'var(--accent)';
+    renderExam();
+    switchTab('exam');
+    startTimer();
+  }
+
+  function renderExam() {
+    const meta = document.getElementById('exam-meta');
+    meta.innerHTML = `
+      <div class="meta-item"><div class="meta-val">${questions.length}</div><div class="meta-label">Questions</div></div>
+      <div class="meta-item"><div class="meta-val">${questions.length}</div><div class="meta-label">Total Marks</div></div>
+      <div class="meta-item"><div class="meta-val">MCQ</div><div class="meta-label">Type</div></div>
+    `;
+
+    const container = document.getElementById('exam-questions');
+    container.innerHTML = questions.map((q, idx) => `
+      <div class="exam-q-card">
+        <div class="exam-q-title"><span>Q${idx+1}.</span>${q.text}</div>
+        ${q.options.map((opt, i) => `
+          <label class="radio-option" id="opt-${q.id}-${i}" onclick="selectOption(${q.id}, ${i})">
+            <input type="radio" name="q${q.id}" value="${i}" style="display:none">
+            <span class="opt-letter">${['A','B','C','D'][i]}</span>
+            <span>${opt}</span>
+          </label>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  function selectOption(qId, optIdx) {
+    userAnswers[qId] = optIdx;
+    // Visually update
+    for (let i = 0; i < 4; i++) {
+      const el = document.getElementById(`opt-${qId}-${i}`);
+      if (el) el.classList.toggle('selected', i === optIdx);
+    }
+  }
+
+  function submitExam(forced = false) {
+    const unanswered = questions.filter(q => userAnswers[q.id] === undefined);
+    if (!forced && unanswered.length > 0) {
+      showToast(`⚠️ ${unanswered.length} question(s) ka jawab nahi diya!`);
+      return;
+    }
+    clearInterval(timerInterval);
+    calculateResult();
+    switchTab('result');
+  }
+
+  function calculateResult() {
+    let correct = 0;
+    let weakTopics = [];
+    questions.forEach(q => {
+      if (userAnswers[q.id] === q.correct) {
+        correct++;
+      } else if (q.topic) {
+        weakTopics.push(q.topic);
+      }
+    });
+    const total = questions.length;
+    const pct = Math.round((correct / total) * 100);
+    const pass = pct >= 50;
+
+    // Save to database
+    fetch('/api/save_exam', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        score: correct,
+        total: total,
+        weak_topics: weakTopics
+      })
+    }).catch(err => console.error("Failed to save exam", err));
+
+    const header = document.getElementById('result-header');
+    header.innerHTML = `
+      <div class="score-circle ${pass ? 'pass' : 'fail'}" style="cursor:pointer;" onclick="alert('How it is calculated:\\n\\nYou got ${correct} correct answers out of ${total} questions.\\n\\nPercentage = (${correct} / ${total}) × 100 = ${pct}%')" title="Click to view calculation">
+        <div class="score-num">${correct}/${total}</div>
+        <div class="score-label">${pct}%</div>
+      </div>
+      <h2>${pass ? '🎉 Congratulations!' : '💪 Keep Trying!'}</h2>
+      <p>${pass ? `You answered ${correct} out of ${total} questions correctly. You passed!` : `You answered ${correct} out of ${total} questions correctly. Keep practicing.`}</p>
+    `;
+
+    const review = document.getElementById('result-review');
+    review.innerHTML = `<h3 style="font-family:'Syne',sans-serif; margin-bottom:16px; font-size:16px; color:var(--muted); text-transform:uppercase; letter-spacing:1px;">📖 Review</h3>` +
+      questions.map((q, idx) => {
+        const given = userAnswers[q.id];
+        const isCorrect = given === q.correct;
+        return `
+          <div class="review-card">
+            <div class="rq-title"><span>Q${idx+1}.</span>${q.text}</div>
+            <div>
+              ${isCorrect
+                ? `<span class="answer-chip chip-correct">✓ Sahi: ${q.options[q.correct]}</span>`
+                : `<span class="answer-chip chip-wrong">✗ Aapka jawab: ${given !== undefined ? q.options[given] : 'Chhod diya'}</span>
+                   <span class="answer-chip chip-correct">✓ Sahi: ${q.options[q.correct]}</span>
+                   <div style="margin-top: 12px; font-size: 13px; color: var(--accent); background: rgba(200, 255, 0, 0.05); padding: 10px 14px; border-radius: 8px; border: 1px dashed var(--accent);">
+                     💡 <b>Study Recommendation:</b> ${q.recommendation ? q.recommendation : `To improve your accuracy, we highly recommend reviewing the fundamental concepts and practicing more questions related to <b>${q.topic || 'this topic'}</b>.`}
+                   </div>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+  }
+
+  function retakeExam() {
+    userAnswers = {};
+    const inputs = document.querySelectorAll('input[type="radio"]');
+    inputs.forEach(i => i.checked = false);
+    document.querySelectorAll('.radio-option').forEach(el => el.classList.remove('selected'));
+    
+    // Reset Timer
+    clearInterval(timerInterval);
+    remainingSeconds = examDurationMinutes * 60;
+    document.getElementById('timer-display').style.color = 'var(--accent)';
+    
+    switchTab('exam');
+    startTimer();
+  }
+
+  // Initialization
+  renderBuilder();
+  {% if questions %}
+  // Automatically switch to Exam view when AI questions are generated
+  startExam();
+  {% endif %}
+
+</script>
+</body>
+</html>
