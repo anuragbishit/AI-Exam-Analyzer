@@ -46,7 +46,7 @@ app.config['SESSION_COOKIE_SECURE'] = False
 # ─────────────────────────────────────────────
 
 # PASTE YOUR REAL API KEY IN .env FILE OR BELOW
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAHNEifQB-yKPdLginiQ9EhuZwFwCuTP6E")
+API_KEY = os.environ.get("GEMINI_API_KEY")
 
 client = genai.Client(api_key=API_KEY)
 
@@ -1010,18 +1010,24 @@ Format:
     try:
 
         import time
-        max_retries = 3
+        max_retries = 5
         response = None
+        current_model = "gemini-3.6-flash"
+        
         for attempt in range(max_retries):
             try:
                 response = client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model=current_model,
                     contents=prompt
                 )
                 break
             except Exception as e:
-                if "503" in str(e) and attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)  # Exponential backoff (1s, 2s, 4s)
+                if ("503" in str(e) or "429" in str(e) or "quota" in str(e).lower()) and attempt < max_retries - 1:
+                    # If flash is overloaded, try pro on later attempts
+                    if attempt >= 2:
+                        current_model = "gemini-3.6-pro"
+                        
+                    time.sleep(4 + (attempt * 2))  # Wait: 4s, 6s, 8s, 10s...
                 else:
                     raise e
 
