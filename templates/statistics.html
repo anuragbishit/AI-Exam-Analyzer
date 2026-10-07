@@ -174,7 +174,60 @@
         </div>
     </div>
 
-    <!-- Weak Topic Hits -->
+    <!-- Question-Level Analytics -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(59,130,246,0.15); color:#3b82f6;">
+                <i class="fa-solid fa-list-check"></i>
+            </div>
+            Question-Level Analytics
+        </div>
+        <div class="formula-explanation">
+            These metrics are calculated from your individual question attempts, including accuracy and time to first answer.
+        </div>
+        {% set qa_total = question_summary['total_attempts'] if question_summary else 0 %}
+        {% set qa_correct = question_summary['correct_attempts'] if question_summary else 0 %}
+        {% set qa_accuracy = ((qa_correct * 100.0 / qa_total) if qa_total else 0) %}
+        <div class="calculation-steps">
+            <div class="step-box"><div class="step-value">{{ qa_total }}</div><div class="step-label">Questions Tracked</div></div>
+            <div class="step-box"><div class="step-value">{{ qa_correct }}</div><div class="step-label">Correct</div></div>
+            <div class="step-box"><div class="step-value">{{ '%.0f'|format(qa_accuracy) }}%</div><div class="step-label">Accuracy</div></div>
+            <div class="step-box"><div class="step-value">{{ '%.1f'|format(question_summary['avg_response_time'] if question_summary else 0) }}s</div><div class="step-label">Avg Answer Time</div></div>
+            <div class="step-box"><div class="step-value">{{ '%.1f'|format(question_summary['max_response_time'] if question_summary else 0) }}s</div><div class="step-label">Longest Answer Time</div></div>
+        </div>
+
+        {% if question_topic_stats %}
+        <div style="margin-top:8px;overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:10px;border-bottom:1px solid var(--border);">Topic</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Attempts</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Accuracy</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Avg Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in question_topic_stats %}
+                    {% set topic_accuracy = (row['correct'] * 100.0 / row['attempts']) if row['attempts'] else 0 %}
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);">{{ row['topic'] }}</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">{{ row['attempts'] }}</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">{{ '%.0f'|format(topic_accuracy) }}%</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">{{ '%.1f'|format(row['avg_response_time']) }}s</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px 0;color:var(--muted);">
+            Complete an exam to start building question-level analytics.
+        </div>
+        {% endif %}
+    </div>
+
+        <!-- Weak Topic Hits -->
     <div class="math-card">
         <div class="math-card-header">
             <div class="icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;">
