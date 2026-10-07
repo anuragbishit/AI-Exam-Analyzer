@@ -1332,6 +1332,8 @@ def submit_exam():
 
                 'topic': q['topic'],
 
+                'subtopic': q.get('subtopic') or q['topic'],
+
                 'recommendation': q.get('recommendation') or get_recommendation(q['topic'])
 
             })
