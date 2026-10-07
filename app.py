@@ -17,6 +17,7 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 from google import genai
+from question_analytics import ensure_question_attempts_table, save_question_attempts
 
 load_dotenv()
 
@@ -139,6 +140,8 @@ def create_tables():
             )
 
         conn.commit()
+
+    ensure_question_attempts_table(get_db)
 
 
 # ─────────────────────────────────────────────
