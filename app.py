@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from google import genai
 from question_analytics import ensure_question_attempts_table, save_question_attempts
 from mastery_engine import calculate_topic_mastery
+from knowledge_gap_engine import calculate_knowledge_gaps, build_knowledge_gap_prompt
 
 load_dotenv()
 
@@ -865,6 +866,7 @@ def dashboard():
     ).fetchone()
 
     topic_mastery = calculate_topic_mastery(conn, sid)
+    knowledge_gaps = calculate_knowledge_gaps(conn, sid)
 
     chart_labels = []
 
@@ -915,7 +917,8 @@ def dashboard():
         chart_scores=chart_scores,
         topic_recommendations=TOPIC_RECOMMENDATIONS,
         question_summary=question_summary,
-        topic_mastery=topic_mastery
+        topic_mastery=topic_mastery,
+        knowledge_gaps=knowledge_gaps
     )
 
 
@@ -1027,6 +1030,7 @@ def statistics():
     ).fetchall()
 
     topic_mastery = calculate_topic_mastery(conn, sid)
+    knowledge_gaps = calculate_knowledge_gaps(conn, sid)
 
     conn.close()
 
@@ -1042,7 +1046,8 @@ def statistics():
         topic_counts=topic_counts,
         question_summary=question_summary,
         question_topic_stats=question_topic_stats,
-        topic_mastery=topic_mastery
+        topic_mastery=topic_mastery,
+        knowledge_gaps=knowledge_gaps
     )
 
 
