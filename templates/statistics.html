@@ -280,6 +280,58 @@
         {% endif %}
     </div>
 
+    <!-- Knowledge Gap Detection -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(239,68,68,0.15);color:#ef4444;">
+                <i class="fa-solid fa-magnifying-glass-chart"></i>
+            </div>
+            Knowledge Gap Detection
+        </div>
+        <div class="formula-explanation">
+            This section identifies concept-level gaps using stored question attempts. A concept is flagged only when there is enough evidence from accuracy, recent performance, or unusually high response time.
+        </div>
+
+        {% if knowledge_gaps and knowledge_gaps.gaps %}
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left;padding:10px;border-bottom:1px solid var(--border);">Topic</th>
+                        <th style="text-align:left;padding:10px;border-bottom:1px solid var(--border);">Knowledge Gap</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Mastery</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Accuracy</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Recent</th>
+                        <th style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">Avg Time</th>
+                        <th style="text-align:left;padding:10px;border-bottom:1px solid var(--border);">Evidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for gap in knowledge_gaps.gaps %}
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);">{{ gap.topic }}</td>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);font-weight:600;">{{ gap.subtopic }}</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);color:#ef4444;">{{ gap.mastery }}%</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">{{ gap.accuracy }}%</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">{{ gap.recent_accuracy }}%</td>
+                        <td style="text-align:center;padding:10px;border-bottom:1px solid var(--border);">{{ gap.avg_response_time }}s</td>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);color:var(--muted);">{{ gap.reasons|join(', ') if gap.reasons else 'Below target mastery' }} · {{ gap.confidence }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px 0;color:var(--muted);">
+            {% if knowledge_gaps and knowledge_gaps.all_concepts %}
+            No confirmed knowledge gaps yet. Continue taking concept-tagged exams to strengthen the evidence.
+            {% else %}
+            Complete new AI/practice exams to start concept-level knowledge gap detection.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
     <!-- Weak Topic Hits -->
     <div class="math-card">
         <div class="math-card-header">
