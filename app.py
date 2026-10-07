@@ -1085,6 +1085,132 @@ Format:
         )
 
 
+
+# ─────────────────────────────────────────────
+# AI PRACTICE FROM MISTAKES
+# ─────────────────────────────────────────────
+
+def generate_practice_questions(topics, count=10):
+    """Generate a targeted practice exam from the student's weak topics."""
+    if not topics:
+        raise ValueError("No weak topics available for practice.")
+
+    safe_count = max(1, min(int(count), 20))
+    topic_text = ", ".join(topics[:8])
+
+    prompt = f'''Create exactly {safe_count} multiple-choice practice questions focused on these weak topics:
+{topic_text}
+
+The questions are for a student who previously answered questions incorrectly in these areas.
+Requirements:
+1. Cover the listed weak topics as evenly as possible.
+2. Mix conceptual and application-oriented questions.
+3. Difficulty should be adaptive: mostly easy/medium, with a small number of challenging questions.
+4. Every question must have exactly 4 unique options.
+5. Exactly one option must be correct.
+6. Do not repeat the same question or use trivial wording.
+7. The "topic" field must contain the specific weak topic being tested.
+8. The "recommendation" field must name the exact concept to review if the student gets the question wrong.
+9. Return ONLY a valid JSON array.
+
+Format:
+[
+  {{
+    "question": "Question here",
+    "options": ["A", "B", "C", "D"],
+    "answer": "Correct Option",
+    "topic": "Specific Topic",
+    "recommendation": "Specific concept or sub-topic to review"
+  }}
+]'''
+
+    import time
+    response = None
+    current_model = "gemini-3.6-flash"
+
+    for attempt in range(5):
+        try:
+            response = client.models.generate_content(model=current_model, contents=prompt)
+            break
+        except Exception as e:
+            if (("503" in str(e) or "429" in str(e) or "quota" in str(e).lower()) and attempt < 4):
+                if attempt >= 2:
+                    current_model = "gemini-3.6-pro"
+                time.sleep(4 + (attempt * 2))
+            else:
+                raise
+
+    if not response or not getattr(response, "text", None):
+        raise Exception("Empty AI response")
+
+    text = clean_ai_response(response.text)
+    start = text.find('[')
+    end = text.rfind(']') + 1
+    if start == -1 or end <= 0:
+        raise Exception("JSON array not found")
+
+    questions = json.loads(text[start:end])
+    cleaned = validate_questions(questions, topics[0])
+
+    if len(cleaned) < max(1, min(3, safe_count)):
+        raise Exception("AI returned too few valid practice questions")
+
+    normalized_topics = {t.strip().lower(): t.strip() for t in topics if t.strip()}
+    for q in cleaned:
+        ai_topic = str(q.get("topic", "")).strip()
+        q["topic"] = normalized_topics.get(ai_topic.lower(), ai_topic or topics[0])
+
+    return cleaned
+
+
+@app.route('/practice_from_mistakes', methods=['POST'])
+def practice_from_mistakes():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db()
+    rows = conn.execute(
+        '''SELECT weak_topics FROM exam_history
+           WHERE student_id=? AND weak_topics != ''
+           ORDER BY id DESC LIMIT 5''',
+        (session['student_id'],)
+    ).fetchall()
+    conn.close()
+
+    topics = []
+    for row in rows:
+        for topic in (row['weak_topics'] or '').split('||'):
+            topic = topic.strip()
+            if topic and topic not in topics:
+                topics.append(topic)
+
+    if not topics:
+        return render_template(
+            'exam_setup.html',
+            error='Take an exam and make some mistakes first. Your weak topics will appear here.'
+        )
+
+    try:
+        questions = generate_practice_questions(topics, 10)
+        session['questions'] = questions
+        session['exam_topic'] = "AI Practice: " + ", ".join(topics[:4])
+        session['exam_mode'] = 'practice_from_mistakes'
+
+        return render_template(
+            'exam.html',
+            questions=questions,
+            total=len(questions),
+            duration=10,
+            practice_mode=True,
+            practice_topics=topics[:8]
+        )
+    except Exception as e:
+        print("PRACTICE AI ERROR:", e)
+        return render_template(
+            'exam_setup.html',
+            error=f'Failed to generate practice questions: {str(e)}'
+        )
+
 # ─────────────────────────────────────────────
 # SUBMIT EXAM
 # ─────────────────────────────────────────────
