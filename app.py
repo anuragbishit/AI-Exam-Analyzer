@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from google import genai
 from question_analytics import ensure_question_attempts_table, save_question_attempts
+from mastery_engine import calculate_topic_mastery
 
 load_dotenv()
 
@@ -861,6 +862,8 @@ def dashboard():
         (sid,)
     ).fetchone()
 
+    topic_mastery = calculate_topic_mastery(conn, sid)
+
     chart_labels = []
 
     chart_scores = []
@@ -909,7 +912,8 @@ def dashboard():
         chart_labels=chart_labels,
         chart_scores=chart_scores,
         topic_recommendations=TOPIC_RECOMMENDATIONS,
-        question_summary=question_summary
+        question_summary=question_summary,
+        topic_mastery=topic_mastery
     )
 
 
@@ -1019,6 +1023,8 @@ def statistics():
         (sid,)
     ).fetchall()
 
+    topic_mastery = calculate_topic_mastery(conn, sid)
+
     conn.close()
 
     return render_template(
@@ -1032,7 +1038,8 @@ def statistics():
         total_weak=total_weak,
         topic_counts=topic_counts,
         question_summary=question_summary,
-        question_topic_stats=question_topic_stats
+        question_topic_stats=question_topic_stats,
+        topic_mastery=topic_mastery
     )
 
 
