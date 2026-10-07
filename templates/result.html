@@ -123,6 +123,20 @@
         </div>
         {% endif %}
 
+        {% if unique_weak %}
+        <div class="panel" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(99,102,241,.05));border-color:rgba(59,130,246,.25);">
+            <div class="panel-title"><i class="fa-solid fa-brain"></i> Turn Your Mistakes Into Practice</div>
+            <p style="color:var(--muted);line-height:1.6;margin-bottom:16px;">
+                AI can generate a fresh practice exam focused on the weak topics detected from your recent attempts.
+            </p>
+            <form method="POST" action="/practice_from_mistakes">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fa-solid fa-bolt"></i> Practice My Weak Areas
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
         <div class="action-bar">
             <a href="/dashboard" class="btn btn-outline"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
             <a href="/exam" class="btn btn-primary"><i class="fa-solid fa-rotate-right"></i> Retake Exam</a>
