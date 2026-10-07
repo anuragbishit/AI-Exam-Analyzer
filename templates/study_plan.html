@@ -129,23 +129,31 @@
     <div class="plan-hero">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
             <div>
-                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;">Phase 2 · Step 6A</div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;">Phase 2 · Step 6B</div>
                 <h2 style="font-size:24px;margin-bottom:6px;">AI Personalized Study Plan</h2>
                 <p style="font-size:13px;color:var(--muted);line-height:1.55;max-width:650px;">
-                    This draft plan is generated from your stored topic mastery and concept-level knowledge gaps.
-                    Gemini personalization will be added in Step 6B.
+                    This plan is generated from your stored topic mastery and concept-level knowledge gaps using Gemini AI. The database-backed 6A progress system remains active.
                 </p>
             </div>
             <form method="POST" action="/study_plan/generate">
                 <button class="btn btn-primary" type="submit">
-                    <i class="fa-solid fa-rotate"></i>
-                    {% if plan %}Regenerate Plan{% else %}Build My Plan{% endif %}
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    {% if plan %}Generate New AI Plan{% else %}Generate My AI Plan{% endif %}
                 </button>
             </form>
         </div>
 
         {% if plan %}
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:18px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:18px;">
+            {% if plan.generation_method == 'gemini' %}
+            <span class="badge badge-green"><i class="fa-solid fa-wand-magic-sparkles"></i>&nbsp; Gemini AI Plan</span>
+            {% elif plan.generation_method == 'rule_based_fallback' %}
+            <span class="badge badge-amber"><i class="fa-solid fa-shield-halved"></i>&nbsp; AI Fallback Plan</span>
+            {% else %}
+            <span class="badge badge-blue"><i class="fa-solid fa-gears"></i>&nbsp; Rule-Based Plan</span>
+            {% endif %}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:10px;">
             <span>{{ plan.completed_items }}/{{ plan.total_items }} days completed</span>
             <strong style="color:var(--text);">{{ plan.progress_percent }}%</strong>
         </div>
