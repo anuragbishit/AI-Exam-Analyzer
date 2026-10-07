@@ -340,6 +340,56 @@ def clean_ai_response(text):
 
 
 # ─────────────────────────────────────────────
+# GEMINI GENERATION HELPER
+# ─────────────────────────────────────────────
+
+def generate_ai_content(prompt):
+    """Generate AI content with supported model fallbacks for temporary 503/429 errors."""
+    import time
+
+    models = [
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+    ]
+
+    last_error = None
+
+    for attempt in range(6):
+        model = models[attempt % len(models)]
+
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt
+            )
+
+            if response and getattr(response, "text", None):
+                return response.text
+
+            raise Exception("Empty AI response")
+
+        except Exception as e:
+            last_error = e
+            message = str(e).lower()
+
+            transient = (
+                "503" in message
+                or "429" in message
+                or "unavailable" in message
+                or "high demand" in message
+                or "quota" in message
+            )
+
+            if transient and attempt < 5:
+                time.sleep(min(3 + (attempt * 2), 10))
+                continue
+
+            raise last_error
+
+    raise last_error
+
+# ─────────────────────────────────────────────
 # AI QUESTION VALIDATOR
 # ─────────────────────────────────────────────
 
@@ -1053,35 +1103,7 @@ Format:
 
     try:
 
-        import time
-        max_retries = 5
-        response = None
-        current_model = "gemini-3.6-flash"
-        
-        for attempt in range(max_retries):
-            try:
-                response = client.models.generate_content(
-                    model=current_model,
-                    contents=prompt
-                )
-                break
-            except Exception as e:
-                if ("503" in str(e) or "429" in str(e) or "quota" in str(e).lower()) and attempt < max_retries - 1:
-                    # If flash is overloaded, try pro on later attempts
-                    if attempt >= 2:
-                        current_model = "gemini-3.6-pro"
-                        
-                    time.sleep(4 + (attempt * 2))  # Wait: 4s, 6s, 8s, 10s...
-                else:
-                    raise e
-
-        text = ""
-
-        if hasattr(response, "text") and response.text:
-            text = response.text
-
-        if not text:
-            raise Exception("Empty AI response")
+        text = generate_ai_content(prompt)
 
         text = clean_ai_response(text)
 
@@ -1172,26 +1194,7 @@ Format:
   }}
 ]'''
 
-    import time
-    response = None
-    current_model = "gemini-3.6-flash"
-
-    for attempt in range(5):
-        try:
-            response = client.models.generate_content(model=current_model, contents=prompt)
-            break
-        except Exception as e:
-            if (("503" in str(e) or "429" in str(e) or "quota" in str(e).lower()) and attempt < 4):
-                if attempt >= 2:
-                    current_model = "gemini-3.6-pro"
-                time.sleep(4 + (attempt * 2))
-            else:
-                raise
-
-    if not response or not getattr(response, "text", None):
-        raise Exception("Empty AI response")
-
-    text = clean_ai_response(response.text)
+    text = generate_ai_content(prompt)
     start = text.find('[')
     end = text.rfind(']') + 1
     if start == -1 or end <= 0:
