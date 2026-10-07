@@ -1014,12 +1014,13 @@ def statistics():
     question_topic_stats = conn.execute(
         '''
         SELECT topic,
+               subtopic,
                COUNT(*) AS attempts,
                COALESCE(SUM(is_correct), 0) AS correct,
                COALESCE(AVG(response_time_seconds), 0) AS avg_response_time
         FROM question_attempts
         WHERE student_id=?
-        GROUP BY topic
+        GROUP BY topic, subtopic
         ORDER BY attempts DESC
         ''',
         (sid,)
