@@ -455,12 +455,14 @@ def validate_questions(questions, topic):
             continue
 
         recommendation = str(q.get('recommendation', '')).strip()
+        subtopic = str(q.get('subtopic', '')).strip() or topic
 
         cleaned_questions.append({
             'question': question_text,
             'options': options,
             'answer': matched_answer,
             'topic': topic,
+            'subtopic': subtopic,
             'recommendation': recommendation
         })
 
@@ -1112,6 +1114,7 @@ Format:
     "options": ["A", "B", "C", "D"],
     "answer": "Correct Option",
     "topic": "Topic Name",
+    "subtopic": "Specific concept or sub-topic tested by this question",
     "recommendation": "Provide a very specific concept, sub-topic, or formula to study related to this exact question."
   }}
 ]
@@ -1206,6 +1209,7 @@ Format:
     "options": ["A", "B", "C", "D"],
     "answer": "Correct Option",
     "topic": "Specific Topic",
+    "subtopic": "Specific concept tested",
     "recommendation": "Specific concept or sub-topic to review"
   }}
 ]'''
