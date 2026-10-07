@@ -339,6 +339,61 @@
 
     </div>
 
+    <!-- TOPIC MASTERY -->
+    <div class="panel" style="margin-bottom:20px;">
+        <div class="panel-title">
+            <i class="fa-solid fa-brain"></i>
+            Topic Mastery
+        </div>
+        <p style="color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:18px;">
+            Mastery is calculated from your question-level accuracy, with recent performance included after enough attempts are available.
+        </p>
+
+        {% if topic_mastery %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;">
+            {% for item in topic_mastery %}
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:16px;">
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px;">
+                    <div>
+                        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;">{{ item.topic }}</div>
+                        <div style="font-size:11px;color:var(--muted);margin-top:4px;">{{ item.attempts }} question{{ 's' if item.attempts != 1 else '' }} · {{ item.confidence }}</div>
+                    </div>
+                    {% if item.status == 'Mastered' %}
+                    <span class="badge badge-green">Mastered</span>
+                    {% elif item.status == 'Strong' %}
+                    <span class="badge badge-green">Strong</span>
+                    {% elif item.status == 'Developing' %}
+                    <span class="badge badge-amber">Developing</span>
+                    {% elif item.status == 'Weak' %}
+                    <span class="badge badge-amber">Weak</span>
+                    {% else %}
+                    <span class="badge badge-red">Critical</span>
+                    {% endif %}
+                </div>
+                <div style="height:9px;background:var(--bg);border-radius:20px;overflow:hidden;">
+                    {% if item.status == 'Mastered' or item.status == 'Strong' %}
+                    <div style="width:{{ item.mastery_score }}%;height:100%;background:#10b981;border-radius:20px;"></div>
+                    {% elif item.status == 'Developing' %}
+                    <div style="width:{{ item.mastery_score }}%;height:100%;background:#f59e0b;border-radius:20px;"></div>
+                    {% else %}
+                    <div style="width:{{ item.mastery_score }}%;height:100%;background:#ef4444;border-radius:20px;"></div>
+                    {% endif %}
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:9px;font-size:12px;color:var(--muted);">
+                    <span>Mastery</span>
+                    <strong style="color:var(--text);">{{ item.mastery_score }}%</strong>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:30px 10px;">
+            <i class="fa-solid fa-brain"></i>
+            <p>Complete an exam to build topic mastery scores.</p>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- WEAKNESS + RECOMMENDATIONS -->
     <div class="grid-2">
 
