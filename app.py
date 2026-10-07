@@ -801,6 +801,77 @@ def reset_password():
     return render_template('reset_password.html', error=error)
 
 
+
+# ─────────────────────────────────────────────
+# PERSONALIZED STUDY PLAN
+# ─────────────────────────────────────────────
+
+@app.route('/study_plan')
+def study_plan():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db()
+    plan = get_active_study_plan(conn, session['student_id'])
+    conn.close()
+
+    return render_template(
+        'study_plan.html',
+        plan=plan
+    )
+
+
+@app.route('/study_plan/generate', methods=['POST'])
+def generate_study_plan():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    sid = session['student_id']
+    conn = get_db()
+
+    topic_mastery = calculate_topic_mastery(conn, sid)
+    knowledge_gaps = calculate_knowledge_gaps(conn, sid)
+
+    plan = build_draft_study_plan(
+        topic_mastery,
+        knowledge_gaps,
+        days=7
+    )
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Archive an existing active/draft plan before creating a new one.
+    conn.execute(
+        """
+        UPDATE study_plans
+        SET status='archived', updated_at=?
+        WHERE student_id=? AND status IN ('active', 'draft')
+        """,
+        (now, sid)
+    )
+
+    plan['status'] = 'active'
+    plan_id = save_study_plan(conn, sid, plan)
+    conn.close()
+
+    return redirect(f'/study_plan?generated=1&id={plan_id}')
+
+
+@app.route('/study_plan/item/<int:item_id>/toggle', methods=['POST'])
+def toggle_study_plan_item(item_id):
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    conn = get_db()
+    success = toggle_plan_item(
+        conn,
+        session['student_id'],
+        item_id
+    )
+    conn.close()
+
+    return redirect('/study_plan?updated=1' if success else '/study_plan')
+
 # ─────────────────────────────────────────────
 # DASHBOARD
 # ─────────────────────────────────────────────
