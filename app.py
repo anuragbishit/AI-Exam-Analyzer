@@ -1062,6 +1062,7 @@ Format:
 
         session['questions'] = cleaned_questions
         session['exam_topic'] = topic
+        session['exam_mode'] = 'ai_generated'
 
         try:
             duration = int(request.form.get('duration', 10))
@@ -1151,6 +1152,13 @@ Format:
 
     questions = json.loads(text[start:end])
     cleaned = validate_questions(questions, topics[0])
+
+    # The shared validator intentionally normalizes topics for ordinary exams.
+    # For mistake practice, restore the specific weak-topic label by cycling
+    # through the requested topics so analytics remain meaningful.
+    if len(cleaned) > 1 and len(topics) > 1:
+        for index, q in enumerate(cleaned):
+            q['topic'] = topics[index % len(topics)]
 
     if len(cleaned) < max(1, min(3, safe_count)):
         raise Exception("AI returned too few valid practice questions")
