@@ -11,6 +11,7 @@ def ensure_question_attempts_table(get_db):
                 question_index INTEGER NOT NULL,
                 question_text TEXT NOT NULL,
                 topic TEXT DEFAULT 'General',
+                subtopic TEXT DEFAULT 'General Concepts',
                 difficulty TEXT DEFAULT 'custom',
                 selected_answer TEXT,
                 correct_answer TEXT NOT NULL,
@@ -20,6 +21,16 @@ def ensure_question_attempts_table(get_db):
                 attempted_at TEXT NOT NULL
             )
         """)
+
+        # Backward-compatible migration for databases created before Step 5A.
+        columns = {
+            row[1] for row in conn.execute("PRAGMA table_info(question_attempts)").fetchall()
+        }
+        if "subtopic" not in columns:
+            conn.execute(
+                "ALTER TABLE question_attempts ADD COLUMN subtopic TEXT DEFAULT 'General Concepts'"
+            )
+
         conn.commit()
 
 def save_question_attempts(get_db, exam_id, student_id, questions, responses, exam_mode):
@@ -50,6 +61,7 @@ def save_question_attempts(get_db, exam_id, student_id, questions, responses, ex
             index + 1,
             str(q.get('question', '')).strip(),
             str(q.get('topic', 'General')).strip() or 'General',
+            str(q.get('subtopic', 'General Concepts')).strip() or 'General Concepts',
             str(q.get('difficulty', 'custom')).strip() or 'custom',
             selected_answer,
             correct_answer,
@@ -62,10 +74,10 @@ def save_question_attempts(get_db, exam_id, student_id, questions, responses, ex
     with get_db() as conn:
         conn.executemany("""
             INSERT INTO question_attempts
-            (exam_id, student_id, question_index, question_text, topic, difficulty,
+            (exam_id, student_id, question_index, question_text, topic, subtopic, difficulty,
              selected_answer, correct_answer, is_correct, response_time_seconds,
              exam_mode, attempted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, rows)
         conn.commit()
     return len(rows)
