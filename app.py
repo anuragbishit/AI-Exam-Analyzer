@@ -1325,15 +1325,25 @@ def save_exam_api():
         return {'success': False, 'error': 'Not logged in'}, 401
 
     try:
-        data = request.get_json()
-        score = int(data.get('score', 0))
-        total_questions = int(data.get('total', 0))
+        data = request.get_json(silent=True) or {}
+        score = int(data.get('score', 0) or 0)
+        total_questions = int(data.get('total', 0) or 0)
         weak_topics = data.get('weak_topics', [])
-        
-        unique_weak = list(dict.fromkeys(weak_topics))
-        
+        if not isinstance(weak_topics, list):
+            weak_topics = []
+
+        unique_weak = list(dict.fromkeys(
+            str(topic).strip() for topic in weak_topics if str(topic).strip()
+        ))
+
+        exam_mode = str(
+            data.get('exam_mode') or session.get('exam_mode') or 'unknown'
+        )
+        exam_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
         with sqlite3.connect(DATABASE) as conn:
-            conn.execute(
+            cursor = conn.cursor()
+            cursor.execute(
                 '''
                 INSERT INTO exam_history
                 (student_id, student_name, score, total_questions, weak_topics, exam_date, is_global, subject_area)
@@ -1345,15 +1355,33 @@ def save_exam_api():
                     score,
                     total_questions,
                     '||'.join(unique_weak),
-                    datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    exam_date,
                     1 if session.get('mode') == 'global' else 0,
                     session.get('exam_topic', 'General')
                 )
             )
+            exam_id = cursor.lastrowid
             conn.commit()
-            
-        return {'success': True}
+
+        questions = session.get('questions') or []
+        responses = data.get('question_attempts') or []
+
+        tracked = save_question_attempts(
+            get_db,
+            exam_id,
+            session['student_id'],
+            questions,
+            responses,
+            exam_mode
+        ) if questions else 0
+
+        return {
+            'success': True,
+            'exam_id': exam_id,
+            'tracked_questions': tracked
+        }
     except Exception as e:
+        print("ANALYTICS SAVE ERROR:", e)
         return {'success': False, 'error': str(e)}, 500
 
 
