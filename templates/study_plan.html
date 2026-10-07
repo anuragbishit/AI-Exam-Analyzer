@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Study Plan — AI Exam Analyzer{% endblock %}
+
+{% block extra_head %}
+<style>
+    .plan-hero {
+        background: linear-gradient(135deg, rgba(59,130,246,.12), rgba(99,102,241,.08));
+        border: 1px solid rgba(99,102,241,.25);
+        border-radius: 18px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+    .progress-track {
+        height: 10px;
+        background: var(--surface2);
+        border-radius: 20px;
+        overflow: hidden;
+        margin-top: 14px;
+    }
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        border-radius: 20px;
+        transition: width .3s ease;
+    }
+    .day-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 14px;
+    }
+    .day-card.completed {
+        opacity: .72;
+        border-color: rgba(16,185,129,.35);
+    }
+    .day-top {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:16px;
+    }
+    .day-number {
+        min-width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(59,130,246,.15);
+        color: var(--accent);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-family:'Syne',sans-serif;
+        font-weight:800;
+    }
+    .day-main { flex:1; }
+    .day-main h3 { font-size:17px; margin-bottom:5px; }
+    .day-meta { color:var(--muted); font-size:12px; }
+    .priority {
+        padding:5px 10px;
+        border-radius:999px;
+        font-size:11px;
+        font-weight:700;
+        white-space:nowrap;
+    }
+    .priority-Critical, .priority-High { background:rgba(239,68,68,.12); color:#ef4444; }
+    .priority-Medium, .priority-Watch { background:rgba(245,158,11,.12); color:#f59e0b; }
+    .priority-Low, .priority-Assessment { background:rgba(16,185,129,.12); color:#10b981; }
+    .objective {
+        margin:14px 0;
+        padding:12px 14px;
+        border-radius:11px;
+        background:var(--surface2);
+        color:var(--muted);
+        font-size:13px;
+        line-height:1.55;
+    }
+    .plan-stats {
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+        margin-bottom:14px;
+    }
+    .plan-stat {
+        padding:7px 10px;
+        border:1px solid var(--border);
+        border-radius:9px;
+        font-size:12px;
+        color:var(--muted);
+    }
+    .plan-stat strong { color:var(--text); }
+    .toggle-btn {
+        padding:9px 14px;
+        border-radius:9px;
+        border:1px solid var(--border);
+        background:transparent;
+        color:var(--text);
+        cursor:pointer;
+        font-size:12px;
+        font-weight:600;
+    }
+    .toggle-btn:hover { border-color:var(--accent); color:var(--accent); }
+    @media(max-width:650px) {
+        .day-top { flex-wrap:wrap; }
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+{% include "_sidebar.html" with context %}
+
+<div class="main">
+    <div class="page-header">
+        <h1>🧠 Personalized Study Plan</h1>
+        <p>Build a structured plan from your current mastery and knowledge gaps.</p>
+    </div>
+
+    {% if request.args.get('updated') %}
+    <div class="alert alert-success">
+        <i class="fa-solid fa-circle-check"></i> Study plan progress updated.
+    </div>
+    {% endif %}
+
+    {% if request.args.get('generated') %}
+    <div class="alert alert-success">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> Your new 7-day plan is ready.
+    </div>
+    {% endif %}
+
+    <div class="plan-hero">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;">Phase 2 · Step 6A</div>
+                <h2 style="font-size:24px;margin-bottom:6px;">AI Personalized Study Plan</h2>
+                <p style="font-size:13px;color:var(--muted);line-height:1.55;max-width:650px;">
+                    This draft plan is generated from your stored topic mastery and concept-level knowledge gaps.
+                    Gemini personalization will be added in Step 6B.
+                </p>
+            </div>
+            <form method="POST" action="/study_plan/generate">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fa-solid fa-rotate"></i>
+                    {% if plan %}Regenerate Plan{% else %}Build My Plan{% endif %}
+                </button>
+            </form>
+        </div>
+
+        {% if plan %}
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:18px;">
+            <span>{{ plan.completed_items }}/{{ plan.total_items }} days completed</span>
+            <strong style="color:var(--text);">{{ plan.progress_percent }}%</strong>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" style="width:{{ plan.progress_percent }}%;"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if plan and plan.items %}
+        {% for item in plan.items %}
+        <div class="day-card {% if item['status'] == 'completed' %}completed{% endif %}">
+            <div class="day-top">
+                <div class="day-number">D{{ item['day_number'] }}</div>
+                <div class="day-main">
+                    <h3>{{ item['title'] if 'title' in item.keys() else ('Day ' ~ item['day_number'] ~ ' Focus') }}</h3>
+                    <div class="day-meta">{{ item['topic'] }} · {{ item['subtopic'] }}</div>
+                </div>
+                <span class="priority priority-{{ item['priority'] }}">{{ item['priority'] }}</span>
+            </div>
+
+            <div class="objective">
+                <strong style="color:var(--text);">Learning objective:</strong>
+                {{ item['objective'] }}
+            </div>
+
+            <div class="plan-stats">
+                <div class="plan-stat">⏱ <strong>{{ item['recommended_minutes'] }} min</strong> study</div>
+                <div class="plan-stat">📝 <strong>{{ item['practice_questions'] }}</strong> practice questions</div>
+                {% if item['status'] == 'completed' %}
+                <div class="plan-stat" style="color:#10b981;">✓ <strong style="color:#10b981;">Completed</strong></div>
+                {% else %}
+                <div class="plan-stat">○ <strong>Pending</strong></div>
+                {% endif %}
+            </div>
+
+            <form method="POST" action="/study_plan/item/{{ item['id'] }}/toggle">
+                <button class="toggle-btn" type="submit">
+                    {% if item['status'] == 'completed' %}
+                    <i class="fa-solid fa-rotate-left"></i> Mark Pending
+                    {% else %}
+                    <i class="fa-solid fa-check"></i> Mark Complete
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="panel" style="text-align:center;padding:60px 24px;">
+            <i class="fa-solid fa-calendar-check" style="font-size:42px;color:var(--accent);margin-bottom:14px;"></i>
+            <h3 style="margin-bottom:8px;">No Study Plan Yet</h3>
+            <p style="color:var(--muted);margin-bottom:20px;">
+                Complete a few new exams so your mastery and knowledge-gap signals are meaningful, then build your 7-day plan.
+            </p>
+            <form method="POST" action="/study_plan/generate">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Build 7-Day Draft Plan
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
