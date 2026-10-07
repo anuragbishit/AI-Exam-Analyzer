@@ -20,6 +20,7 @@ from google import genai
 from question_analytics import ensure_question_attempts_table, save_question_attempts
 from mastery_engine import calculate_topic_mastery
 from knowledge_gap_engine import calculate_knowledge_gaps, build_knowledge_gap_prompt
+from study_plan_engine import build_draft_study_plan, save_study_plan, get_active_study_plan, toggle_plan_item
 
 load_dotenv()
 
@@ -129,6 +130,45 @@ def create_tables():
             )
             '''
         )
+
+        # STUDY PLANS
+        cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS study_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                duration_days INTEGER NOT NULL DEFAULT 7,
+                status TEXT NOT NULL DEFAULT 'draft',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            '''
+        )
+
+        cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS study_plan_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id INTEGER NOT NULL,
+                day_number INTEGER NOT NULL,
+                topic TEXT NOT NULL,
+                subtopic TEXT NOT NULL,
+                priority TEXT NOT NULL DEFAULT 'Medium',
+                recommended_minutes INTEGER NOT NULL DEFAULT 30,
+                objective TEXT NOT NULL,
+                practice_questions INTEGER NOT NULL DEFAULT 10,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at TEXT NOT NULL,
+                completed_at TEXT
+            )
+            '''
+        )
+
+        # Backward-compatible columns for existing study-plan databases.
+        plan_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plan_items)').fetchall()}
+        if 'completed_at' not in plan_columns:
+            cursor.execute("ALTER TABLE study_plan_items ADD COLUMN completed_at TEXT")
 
         # INSERT DEFAULT ADMIN IF NOT EXISTS
         cursor.execute('SELECT COUNT(*) as c FROM admins')
