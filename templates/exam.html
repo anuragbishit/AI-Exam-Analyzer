@@ -457,6 +457,8 @@
   {% endif %}
 
   let userAnswers = {};
+  let questionResponseTimes = {};
+  let examStartedAt = 0;
   
   let examDurationMinutes = {{ duration | default(10) }};
   let remainingSeconds = examDurationMinutes * 60;
@@ -593,6 +595,8 @@
       }
     }
     userAnswers = {};
+    questionResponseTimes = {};
+    examStartedAt = performance.now();
     remainingSeconds = examDurationMinutes * 60;
     document.getElementById('timer-display').style.color = 'var(--accent)';
     renderExam();
@@ -601,6 +605,7 @@
   }
 
   function renderExam() {
+    examStartedAt = performance.now();
     const meta = document.getElementById('exam-meta');
     meta.innerHTML = `
       <div class="meta-item"><div class="meta-val">${questions.length}</div><div class="meta-label">Questions</div></div>
@@ -624,6 +629,9 @@
   }
 
   function selectOption(qId, optIdx) {
+    if (questionResponseTimes[qId] === undefined) {
+      questionResponseTimes[qId] = Math.max(0, (performance.now() - examStartedAt) / 1000);
+    }
     userAnswers[qId] = optIdx;
     // Visually update
     for (let i = 0; i < 4; i++) {
@@ -664,7 +672,12 @@
       body: JSON.stringify({
         score: correct,
         total: total,
-        weak_topics: weakTopics
+        weak_topics: weakTopics,
+        exam_mode: {{ exam_mode | default('manual') | tojson | safe }},
+        question_attempts: questions.map((q, idx) => ({
+          selected_index: userAnswers[q.id] !== undefined ? userAnswers[q.id] : null,
+          response_time_seconds: questionResponseTimes[q.id] || 0
+        }))
       })
     }).catch(err => console.error("Failed to save exam", err));
 
@@ -703,6 +716,7 @@
 
   function retakeExam() {
     userAnswers = {};
+    questionResponseTimes = {};
     const inputs = document.querySelectorAll('input[type="radio"]');
     inputs.forEach(i => i.checked = false);
     document.querySelectorAll('.radio-option').forEach(el => el.classList.remove('selected'));
