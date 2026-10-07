@@ -1101,6 +1101,9 @@ Format:
             topic
         )
 
+        for q in cleaned_questions:
+            q['difficulty'] = difficulty
+
         if len(cleaned_questions) == 0:
             raise Exception("No valid questions generated")
 
@@ -1211,6 +1214,7 @@ Format:
     for q in cleaned:
         ai_topic = str(q.get("topic", "")).strip()
         q["topic"] = normalized_topics.get(ai_topic.lower(), ai_topic or topics[0])
+        q["difficulty"] = "adaptive"
 
     return cleaned
 
