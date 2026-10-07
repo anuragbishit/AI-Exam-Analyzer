@@ -140,6 +140,7 @@ def create_tables():
                 title TEXT NOT NULL,
                 duration_days INTEGER NOT NULL DEFAULT 7,
                 status TEXT NOT NULL DEFAULT 'draft',
+                generation_method TEXT NOT NULL DEFAULT 'rule_based',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -152,6 +153,7 @@ def create_tables():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 plan_id INTEGER NOT NULL,
                 day_number INTEGER NOT NULL,
+                title TEXT NOT NULL DEFAULT 'Day Focus',
                 topic TEXT NOT NULL,
                 subtopic TEXT NOT NULL,
                 priority TEXT NOT NULL DEFAULT 'Medium',
@@ -167,8 +169,14 @@ def create_tables():
 
         # Backward-compatible columns for existing study-plan databases.
         plan_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plan_items)').fetchall()}
+        if 'title' not in plan_columns:
+            cursor.execute("ALTER TABLE study_plan_items ADD COLUMN title TEXT DEFAULT 'Day Focus'")
         if 'completed_at' not in plan_columns:
             cursor.execute("ALTER TABLE study_plan_items ADD COLUMN completed_at TEXT")
+
+        plan_table_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plans)').fetchall()}
+        if 'generation_method' not in plan_table_columns:
+            cursor.execute("ALTER TABLE study_plans ADD COLUMN generation_method TEXT DEFAULT 'rule_based'")
 
         # INSERT DEFAULT ADMIN IF NOT EXISTS
         cursor.execute('SELECT COUNT(*) as c FROM admins')
