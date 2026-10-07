@@ -978,6 +978,7 @@ def dashboard():
 
     topic_mastery = calculate_topic_mastery(conn, sid)
     knowledge_gaps = calculate_knowledge_gaps(conn, sid)
+    active_study_plan = get_active_study_plan(conn, sid)
 
     chart_labels = []
 
@@ -1029,7 +1030,8 @@ def dashboard():
         topic_recommendations=TOPIC_RECOMMENDATIONS,
         question_summary=question_summary,
         topic_mastery=topic_mastery,
-        knowledge_gaps=knowledge_gaps
+        knowledge_gaps=knowledge_gaps,
+        active_study_plan=active_study_plan
     )
 
 
