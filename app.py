@@ -837,32 +837,61 @@ def generate_study_plan():
     sid = session['student_id']
     conn = get_db()
 
-    topic_mastery = calculate_topic_mastery(conn, sid)
-    knowledge_gaps = calculate_knowledge_gaps(conn, sid)
+    try:
+        topic_mastery = calculate_topic_mastery(conn, sid)
+        knowledge_gaps = calculate_knowledge_gaps(conn, sid)
 
-    plan = build_draft_study_plan(
-        topic_mastery,
-        knowledge_gaps,
-        days=7
-    )
+        # Step 6B: ask Gemini to turn the verified analytics into a
+        # structured 7-day learning plan.
+        prompt = build_ai_study_plan_prompt(
+            topic_mastery,
+            knowledge_gaps,
+            days=7
+        )
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            ai_text = generate_ai_content(prompt)
+            plan = parse_ai_study_plan(
+                ai_text,
+                topic_mastery,
+                knowledge_gaps,
+                days=7
+            )
+            generation_method = 'gemini'
+        except Exception as ai_error:
+            # Keep 6A usable during temporary Gemini outages, quota issues,
+            # or malformed model output.
+            print("STUDY PLAN AI ERROR:", ai_error)
+            plan = build_draft_study_plan(
+                topic_mastery,
+                knowledge_gaps,
+                days=7
+            )
+            plan['generation_method'] = 'rule_based_fallback'
+            generation_method = 'rule_based_fallback'
 
-    # Archive an existing active/draft plan before creating a new one.
-    conn.execute(
-        """
-        UPDATE study_plans
-        SET status='archived', updated_at=?
-        WHERE student_id=? AND status IN ('active', 'draft')
-        """,
-        (now, sid)
-    )
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    plan['status'] = 'active'
-    plan_id = save_study_plan(conn, sid, plan)
-    conn.close()
+        conn.execute(
+            """
+            UPDATE study_plans
+            SET status='archived', updated_at=?
+            WHERE student_id=? AND status IN ('active', 'draft')
+            """,
+            (now, sid)
+        )
 
-    return redirect(f'/study_plan?generated=1&id={plan_id}')
+        plan['status'] = 'active'
+        plan['generation_method'] = generation_method
+        plan_id = save_study_plan(conn, sid, plan)
+        conn.close()
+
+        return redirect(f'/study_plan?generated=1&id={plan_id}')
+
+    except Exception as e:
+        conn.close()
+        print("STUDY PLAN ERROR:", e)
+        return redirect('/study_plan?error=1')
 
 
 @app.route('/study_plan/item/<int:item_id>/toggle', methods=['POST'])
