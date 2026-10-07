@@ -394,6 +394,75 @@
         {% endif %}
     </div>
 
+    <!-- KNOWLEDGE GAP DETECTION -->
+    <div class="panel" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(168,85,247,.07),rgba(59,130,246,.05));border-color:rgba(168,85,247,.25);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div>
+                <div class="panel-title" style="margin-bottom:6px;">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i>
+                    Knowledge Gap Detection
+                </div>
+                <p style="color:var(--muted);font-size:13px;line-height:1.6;margin:0;">
+                    Concept-level gaps detected from accuracy, recent performance, and response-time signals.
+                </p>
+            </div>
+            {% if knowledge_gaps and knowledge_gaps.gaps %}
+            <span class="badge badge-red">{{ knowledge_gaps.gaps|length }} gap{{ 's' if knowledge_gaps.gaps|length != 1 else '' }}</span>
+            {% endif %}
+        </div>
+
+        {% if knowledge_gaps and knowledge_gaps.gaps %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:18px;">
+            {% for gap in knowledge_gaps.gaps %}
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:16px;">
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+                    <div>
+                        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;">{{ gap.topic }}</div>
+                        <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-top:4px;">{{ gap.subtopic }}</div>
+                    </div>
+                    {% if gap.gap_level == 'Critical' %}
+                    <span class="badge badge-red">Critical Gap</span>
+                    {% elif gap.gap_level == 'High' %}
+                    <span class="badge badge-red">High Risk</span>
+                    {% else %}
+                    <span class="badge badge-amber">Watch</span>
+                    {% endif %}
+                </div>
+
+                <div style="margin-top:14px;height:8px;background:var(--bg);border-radius:20px;overflow:hidden;">
+                    <div style="width:{{ gap.mastery }}%;height:100%;background:#ef4444;border-radius:20px;"></div>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:var(--muted);">
+                    <span>Mastery {{ gap.mastery }}%</span>
+                    <span>{{ gap.attempts }} attempt{{ 's' if gap.attempts != 1 else '' }}</span>
+                </div>
+
+                {% if gap.reasons %}
+                <div style="margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.06);font-size:12px;color:var(--muted);">
+                    <strong style="color:var(--text);">Signals:</strong>
+                    {{ gap.reasons|join(', ') }}
+                </div>
+                {% endif %}
+
+                <div style="margin-top:9px;font-size:11px;color:var(--muted);">
+                    Accuracy {{ gap.accuracy }}% · Recent {{ gap.recent_accuracy }}% · Avg time {{ gap.avg_response_time }}s · {{ gap.confidence }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:30px 10px;">
+            <i class="fa-solid fa-circle-check" style="color:#10b981;"></i>
+            {% if knowledge_gaps and knowledge_gaps.all_concepts %}
+            <p>No confirmed knowledge gaps yet. Keep practicing; the system will flag a concept when enough evidence is available.</p>
+            {% else %}
+            <p>Complete new AI/practice exams to build concept-level data for knowledge gap detection.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
     <!-- WEAKNESS + RECOMMENDATIONS -->
     <div class="grid-2">
 
