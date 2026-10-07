@@ -344,30 +344,35 @@ def clean_ai_response(text):
 # ─────────────────────────────────────────────
 
 def generate_ai_content(prompt):
-    """Generate AI content with supported model fallbacks for temporary 503/429 errors."""
+    """Generate AI content with fast fallback across currently supported Gemini Flash models."""
     import time
 
+    # Prefer the high-capacity, cost-efficient Flash-Lite model first.
+    # Fall back to newer Flash models when a model is temporarily busy.
     models = [
+        "gemini-3.5-flash-lite",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
-        "gemini-3.6-flash",
     ]
 
     last_error = None
 
-    for attempt in range(6):
-        model = models[attempt % len(models)]
+    for attempt in range(len(models)):
+        model = models[attempt]
 
         try:
+            print(f"AI generation attempt {attempt + 1}/{len(models)} using {model}")
+
             response = client.models.generate_content(
                 model=model,
                 contents=prompt
             )
 
             if response and getattr(response, "text", None):
+                print(f"AI generation succeeded using {model}")
                 return response.text
 
-            raise Exception("Empty AI response")
+            last_error = Exception(f"Empty AI response from {model}")
 
         except Exception as e:
             last_error = e
@@ -381,13 +386,17 @@ def generate_ai_content(prompt):
                 or "quota" in message
             )
 
-            if transient and attempt < 5:
-                time.sleep(min(3 + (attempt * 2), 10))
-                continue
+            print(f"AI generation failed on {model}: {e}")
 
-            raise last_error
+            if not transient:
+                raise
 
-    raise last_error
+            # Give the next model a small delay, but do not keep the browser
+            # waiting through a long retry loop.
+            if attempt < len(models) - 1:
+                time.sleep(2)
+
+    raise last_error or Exception("Gemini AI generation failed")
 
 # ─────────────────────────────────────────────
 # AI QUESTION VALIDATOR
