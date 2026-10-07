@@ -463,6 +463,37 @@
         {% endif %}
     </div>
 
+    <!-- PERSONALIZED STUDY PLAN -->
+    <div class="panel" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(59,130,246,.07),rgba(99,102,241,.05));border-color:rgba(59,130,246,.22);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div>
+                <div class="panel-title" style="margin-bottom:6px;">
+                    <i class="fa-solid fa-calendar-check"></i>
+                    Personalized Study Plan
+                </div>
+                {% if active_study_plan %}
+                <p style="color:var(--muted);font-size:13px;line-height:1.5;margin:0;">
+                    {{ active_study_plan.completed_items }}/{{ active_study_plan.total_items }} days completed · {{ active_study_plan.progress_percent }}% progress
+                </p>
+                {% else %}
+                <p style="color:var(--muted);font-size:13px;line-height:1.5;margin:0;">
+                    Turn your current mastery and knowledge gaps into a structured 7-day study plan.
+                </p>
+                {% endif %}
+            </div>
+            <a href="/study_plan" class="btn btn-primary">
+                <i class="fa-solid fa-arrow-right"></i>
+                {% if active_study_plan %}Open Study Plan{% else %}Build Study Plan{% endif %}
+            </a>
+        </div>
+
+        {% if active_study_plan %}
+        <div style="height:9px;background:var(--bg);border-radius:20px;overflow:hidden;margin-top:16px;">
+            <div style="width:{{ active_study_plan.progress_percent }}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:20px;"></div>
+        </div>
+        {% endif %}
+    </div>
+
     <!-- WEAKNESS + RECOMMENDATIONS -->
     <div class="grid-2">
 
