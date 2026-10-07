@@ -227,7 +227,58 @@
         {% endif %}
     </div>
 
-        <!-- Weak Topic Hits -->
+        <!-- Topic Mastery -->
+    <div class="math-card">
+        <div class="math-card-header">
+            <div class="icon" style="background:rgba(168,85,247,0.15);color:#a855f7;">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            Topic Mastery
+        </div>
+        <div class="formula-explanation">
+            Mastery is based on question-level accuracy. After at least three attempts, the latest five answers contribute 30% so recent improvement is reflected while historical performance remains the main signal.
+        </div>
+        {% if topic_mastery %}
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            {% for item in topic_mastery %}
+            <div style="padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
+                    <div>
+                        <strong style="font-family:'Syne',sans-serif;">{{ item.topic }}</strong>
+                        <div style="font-size:11px;color:var(--muted);margin-top:4px;">{{ item.attempts }} attempt{{ 's' if item.attempts != 1 else '' }} · {{ item.confidence }}</div>
+                    </div>
+                    <div style="font-family:'Syne',sans-serif;font-weight:800;">{{ item.mastery_score }}%</div>
+                </div>
+                <div style="height:8px;background:var(--bg);border-radius:20px;overflow:hidden;">
+                    {% if item.status == 'Mastered' or item.status == 'Strong' %}
+                    <div style="width:{{ item.mastery_score }}%;height:100%;background:#10b981;border-radius:20px;"></div>
+                    {% elif item.status == 'Developing' %}
+                    <div style="width:{{ item.mastery_score }}%;height:100%;background:#f59e0b;border-radius:20px;"></div>
+                    {% else %}
+                    <div style="width:{{ item.mastery_score }}%;height:100%;background:#ef4444;border-radius:20px;"></div>
+                    {% endif %}
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;color:var(--muted);">
+                    <span>Accuracy {{ item.accuracy }}% · Recent {{ item.recent_accuracy }}% · Avg time {{ item.avg_response_time }}s</span>
+                    {% if item.status == 'Mastered' or item.status == 'Strong' %}
+                    <span class="badge badge-green">{{ item.status }}</span>
+                    {% elif item.status == 'Developing' or item.status == 'Weak' %}
+                    <span class="badge badge-amber">{{ item.status }}</span>
+                    {% else %}
+                    <span class="badge badge-red">{{ item.status }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:24px 0;color:var(--muted);">
+            Complete an exam to generate topic mastery scores.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Weak Topic Hits -->
     <div class="math-card">
         <div class="math-card-header">
             <div class="icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;">
