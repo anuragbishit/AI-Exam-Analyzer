@@ -451,6 +451,7 @@
       options: {{ q.options | tojson | safe }},
       correct: {{ q.options.index(q.answer) if q.answer in q.options else 0 }},
       topic: {{ q.get('topic', 'General') | tojson | safe }},
+      subtopic: {{ q.get('subtopic', 'General Concepts') | tojson | safe }},
       recommendation: {{ q.get('recommendation', '') | tojson | safe }}
     });
     {% endfor %}
@@ -617,6 +618,9 @@
     container.innerHTML = questions.map((q, idx) => `
       <div class="exam-q-card">
         <div class="exam-q-title"><span>Q${idx+1}.</span>${q.text}</div>
+        <div style="display:inline-flex;align-items:center;gap:6px;margin:-6px 0 14px 0;padding:5px 10px;border:1px solid rgba(168,85,247,.25);border-radius:999px;background:rgba(168,85,247,.07);color:#c084fc;font-size:11px;font-weight:600;">
+          <span>Concept</span><span style="opacity:.7;">•</span><span>${q.subtopic || q.topic || "General Concepts"}</span>
+        </div>
         ${q.options.map((opt, i) => `
           <label class="radio-option" id="opt-${q.id}-${i}" onclick="selectOption(${q.id}, ${i})">
             <input type="radio" name="q${q.id}" value="${i}" style="display:none">
