@@ -313,10 +313,10 @@ def save_study_plan(conn, student_id, plan):
         cursor.execute(
             """
             INSERT INTO study_plan_items
-            (plan_id, day_number, topic, subtopic, priority,
+            (plan_id, day_number, title, topic, subtopic, priority,
              recommended_minutes, objective, practice_questions,
              status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 plan_id,
@@ -369,6 +369,7 @@ def get_active_study_plan(conn, student_id):
         "title": plan["title"],
         "duration_days": plan["duration_days"],
         "status": plan["status"],
+        "generation_method": plan["generation_method"] if "generation_method" in plan.keys() else "rule_based",
         "created_at": plan["created_at"],
         "updated_at": plan["updated_at"],
         "completed_items": completed,
