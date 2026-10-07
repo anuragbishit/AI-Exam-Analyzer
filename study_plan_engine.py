@@ -40,7 +40,7 @@ def build_draft_study_plan(topic_mastery, knowledge_gaps, days=DEFAULT_DAYS):
         mastery,
         key=lambda x: (x.get("mastery_score", 100), -x.get("attempts", 0))
     ):
-        key = (item["topic"].lower(), item["topic"].lower())
+        key = (item["topic"].lower(), item.get("subtopic", item["topic"]).lower())
         if key in seen:
             continue
 
@@ -165,3 +165,95 @@ def save_study_plan(conn, student_id, plan):
 
     conn.commit()
     return plan_id
+
+def get_active_study_plan(conn, student_id):
+    """Return the latest active or draft plan with its items."""
+    plan = conn.execute(
+        """
+        SELECT *
+        FROM study_plans
+        WHERE student_id=? AND status IN ('active', 'draft')
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (student_id,)
+    ).fetchone()
+
+    if not plan:
+        return None
+
+    items = conn.execute(
+        """
+        SELECT *
+        FROM study_plan_items
+        WHERE plan_id=?
+        ORDER BY day_number ASC
+        """,
+        (plan["id"],)
+    ).fetchall()
+
+    completed = sum(1 for item in items if item["status"] == "completed")
+
+    return {
+        "id": plan["id"],
+        "title": plan["title"],
+        "duration_days": plan["duration_days"],
+        "status": plan["status"],
+        "created_at": plan["created_at"],
+        "updated_at": plan["updated_at"],
+        "completed_items": completed,
+        "total_items": len(items),
+        "progress_percent": round((completed / len(items)) * 100) if items else 0,
+        "items": items
+    }
+
+
+def toggle_plan_item(conn, student_id, item_id):
+    """Toggle one item between pending and completed."""
+    row = conn.execute(
+        """
+        SELECT spi.id, spi.plan_id, spi.status
+        FROM study_plan_items spi
+        JOIN study_plans sp ON sp.id = spi.plan_id
+        WHERE spi.id=? AND sp.student_id=?
+        """,
+        (item_id, student_id)
+    ).fetchone()
+
+    if not row:
+        return False
+
+    new_status = "pending" if row["status"] == "completed" else "completed"
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    completed_at = now if new_status == "completed" else None
+
+    conn.execute(
+        """
+        UPDATE study_plan_items
+        SET status=?, completed_at=?
+        WHERE id=?
+        """,
+        (new_status, completed_at, item_id)
+    )
+
+    remaining = conn.execute(
+        """
+        SELECT COUNT(*) AS count
+        FROM study_plan_items
+        WHERE plan_id=? AND status!='completed'
+        """,
+        (row["plan_id"],)
+    ).fetchone()["count"]
+
+    plan_status = "completed" if remaining == 0 else "active"
+
+    conn.execute(
+        """
+        UPDATE study_plans
+        SET status=?, updated_at=?
+        WHERE id=?
+        """,
+        (plan_status, now, row["plan_id"])
+    )
+    conn.commit()
+    return True
