@@ -790,6 +790,18 @@ def dashboard():
 
     total_weak = sum(topic_counts.values())
 
+    question_summary = conn.execute(
+        '''
+        SELECT COUNT(*) AS total_attempts,
+               COALESCE(SUM(is_correct), 0) AS correct_attempts,
+               COALESCE(AVG(response_time_seconds), 0) AS avg_response_time,
+               COALESCE(MAX(response_time_seconds), 0) AS max_response_time
+        FROM question_attempts
+        WHERE student_id=?
+        ''',
+        (sid,)
+    ).fetchone()
+
     chart_labels = []
 
     chart_scores = []
@@ -837,7 +849,8 @@ def dashboard():
         topic_counts=topic_counts,
         chart_labels=chart_labels,
         chart_scores=chart_scores,
-        topic_recommendations=TOPIC_RECOMMENDATIONS
+        topic_recommendations=TOPIC_RECOMMENDATIONS,
+        question_summary=question_summary
     )
 
 
@@ -921,6 +934,32 @@ def statistics():
 
     total_weak = sum(topic_counts.values())
 
+    question_summary = conn.execute(
+        '''
+        SELECT COUNT(*) AS total_attempts,
+               COALESCE(SUM(is_correct), 0) AS correct_attempts,
+               COALESCE(AVG(response_time_seconds), 0) AS avg_response_time,
+               COALESCE(MAX(response_time_seconds), 0) AS max_response_time
+        FROM question_attempts
+        WHERE student_id=?
+        ''',
+        (sid,)
+    ).fetchone()
+
+    question_topic_stats = conn.execute(
+        '''
+        SELECT topic,
+               COUNT(*) AS attempts,
+               COALESCE(SUM(is_correct), 0) AS correct,
+               COALESCE(AVG(response_time_seconds), 0) AS avg_response_time
+        FROM question_attempts
+        WHERE student_id=?
+        GROUP BY topic
+        ORDER BY attempts DESC
+        ''',
+        (sid,)
+    ).fetchall()
+
     conn.close()
 
     return render_template(
@@ -932,7 +971,9 @@ def statistics():
         total_qs=total_qs,
         best_score=best_score,
         total_weak=total_weak,
-        topic_counts=topic_counts
+        topic_counts=topic_counts,
+        question_summary=question_summary,
+        question_topic_stats=question_topic_stats
     )
 
 
