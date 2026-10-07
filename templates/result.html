@@ -86,6 +86,9 @@
             {% for item in wrong_details %}
             <div class="wrong-card">
                 <div class="wrong-q">{{ loop.index }}. {{ item.question }}</div>
+                <div style="display:inline-flex;align-items:center;gap:6px;margin:-4px 0 12px 0;padding:5px 10px;border:1px solid rgba(168,85,247,.25);border-radius:999px;background:rgba(168,85,247,.07);color:#c084fc;font-size:11px;font-weight:600;">
+                    <span>Concept</span><span style="opacity:.7;">•</span><span>{{ item.subtopic }}</span>
+                </div>
                 <div class="answer-row">
                     <div class="tag tag-wrong">Your Answer</div>
                     <div>{{ item.your_answer }}</div>
