@@ -720,7 +720,49 @@
           response_time_seconds: questionResponseTimes[q.id] || 0
         }))
       })
-    }).catch(err => console.error("Failed to save exam", err));
+    }).then(async response => {
+      const data = await response.json().catch(() => ({}));
+
+      if (Array.isArray(data.answer_explanations)) {
+        data.answer_explanations.forEach(item => {
+          const target = document.getElementById(\`ai-explanation-\${Number(item.question_index) - 1}\`);
+          if (!target) return;
+
+          const methodLabel = item.generation_method === 'gemini'
+            ? 'Gemini AI'
+            : 'Safe fallback';
+
+          target.classList.remove('ai-explanation-loading');
+          target.innerHTML = \`
+            <div class="ai-title">
+              🤖 AI Explanation
+              <span style="font-size:10px;color:var(--muted);font-weight:600;">• \${methodLabel}</span>
+            </div>
+            <div class="ai-section">
+              <span class="ai-label">Why your answer was incorrect:</span>
+              \${escapeHtml(item.explanation)}
+            </div>
+            <div class="ai-section">
+              <span class="ai-label">Concept:</span>
+              \${escapeHtml(item.concept)}
+            </div>
+            \${item.misconception
+              ? \`<div class="ai-section"><span class="ai-label">Avoid this misconception:</span> \${escapeHtml(item.misconception)}</div>\`
+              : ''}
+          \`;
+        });
+      }
+
+      if (data.study_plan_adapted) {
+        showToast('🔄 Your remaining study plan was adapted to your latest performance!');
+      }
+    }).catch(err => {
+      console.error("Failed to save exam", err);
+      document.querySelectorAll('.ai-explanation-loading').forEach(el => {
+        el.classList.remove('ai-explanation-loading');
+        el.innerHTML = '<div class="ai-title">🤖 AI Explanation</div>Explanation could not be loaded right now. Your study recommendation is still available below.';
+      });
+    });
 
     const header = document.getElementById('result-header');
     header.innerHTML = `
