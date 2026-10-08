@@ -820,12 +820,18 @@ def study_plan():
         return redirect('/login')
 
     conn = get_db()
-    plan = get_active_study_plan(conn, session['student_id'])
+    sid = session['student_id']
+    plan = get_active_study_plan(conn, sid)
+    adaptations = (
+        get_recent_plan_adaptations(conn, sid, plan['id'], limit=5)
+        if plan else []
+    )
     conn.close()
 
     return render_template(
         'study_plan.html',
-        plan=plan
+        plan=plan,
+        adaptations=adaptations
     )
 
 
@@ -934,7 +940,6 @@ def adapt_study_plan_route():
             method = "gemini_adaptive"
         except Exception as ai_error:
             print("ADAPTIVE STUDY PLAN AI ERROR:", ai_error)
-            from study_plan_engine import build_adaptive_fallback_items
             adapted_items = build_adaptive_fallback_items(
                 plan,
                 topic_mastery,
