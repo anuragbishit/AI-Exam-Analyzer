@@ -20,7 +20,13 @@ from google import genai
 from question_analytics import ensure_question_attempts_table, save_question_attempts
 from mastery_engine import calculate_topic_mastery
 from knowledge_gap_engine import calculate_knowledge_gaps, build_knowledge_gap_prompt
-from study_plan_engine import (\n    build_draft_study_plan, build_ai_study_plan_prompt, parse_ai_study_plan,\n    build_ai_adaptive_study_plan_prompt, parse_ai_adaptive_study_plan,\n    save_study_plan, get_active_study_plan, toggle_plan_item,\n    auto_adapt_active_study_plan, adapt_study_plan, get_recent_plan_adaptations\n)
+from study_plan_engine import (
+    build_draft_study_plan, build_ai_study_plan_prompt, parse_ai_study_plan,
+    build_ai_adaptive_study_plan_prompt, parse_ai_adaptive_study_plan,
+    save_study_plan, get_active_study_plan, toggle_plan_item,
+    auto_adapt_active_study_plan, adapt_study_plan, get_recent_plan_adaptations,
+    build_adaptive_fallback_items
+)
 
 load_dotenv()
 
