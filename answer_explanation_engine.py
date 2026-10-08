@@ -34,39 +34,130 @@ def build_ai_explanation_prompt(wrong_details):
     )
 
 
-def parse_ai_explanations(raw_text, wrong_details):
-    """Validate and normalize Gemini's explanation response."""
+def _extract_json_payload(raw_text):
+    """Extract a JSON object or array from normal Gemini text/fenced output."""
     text = str(raw_text or "").strip()
     fence = chr(96) * 3
+
     if text.startswith(fence + "json"):
         text = text[len(fence) + 4:]
     elif text.startswith(fence):
         text = text[len(fence):]
+
     if text.endswith(fence):
         text = text[:-len(fence)]
+
     text = text.strip()
 
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    if start < 0 or end <= start:
+    # Try the complete response first.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    candidates = []
+    object_start = text.find("{")
+    array_start = text.find("[")
+    if object_start >= 0:
+        candidates.append(("object", object_start))
+    if array_start >= 0:
+        candidates.append(("array", array_start))
+
+    if not candidates:
         raise ValueError("AI explanation JSON not found")
 
-    data = json.loads(text[start:end])
-    raw_items = data.get("explanations")
-    if not isinstance(raw_items, list):
-        raise ValueError("AI explanation response is missing explanations")
+    _, start = min(candidates, key=lambda item: item[1])
+    object_end = text.rfind("}")
+    array_end = text.rfind("]")
+    end = max(object_end, array_end)
 
-    count = min(len(wrong_details), 12)
-    by_number = {}
+    if end < start:
+        raise ValueError("AI explanation JSON is incomplete")
+
+    payload = text[start:end + 1]
+    return json.loads(payload)
+
+
+def parse_ai_explanations(raw_text, wrong_details):
+    """Validate Gemini explanations while accepting object or array responses."""
+    count = len(wrong_details)
+    if count == 0:
+        return []
+
+    data = _extract_json_payload(raw_text)
+
+    if isinstance(data, list):
+        raw_items = data
+    elif isinstance(data, dict):
+        raw_items = data.get("explanations")
+        if raw_items is None:
+            raw_items = data.get("items")
+        if raw_items is None:
+            # Support a single explanation object when exactly one answer is wrong.
+            if count == 1 and (
+                data.get("explanation")
+                or data.get("why_wrong")
+                or data.get("reason")
+            ):
+                raw_items = [data]
+            else:
+                raw_items = []
+    else:
+        raw_items = []
+
+    if not isinstance(raw_items, list):
+        raise ValueError("AI explanation response is not a list")
+
+    normalized = []
     for item in raw_items:
         if not isinstance(item, dict):
             continue
+
+        number = item.get("item_number", item.get("question_index", item.get("index")))
         try:
-            number = int(item.get("item_number"))
+            number = int(number) if number is not None else None
         except (TypeError, ValueError):
-            continue
-        if 1 <= number <= count:
-            by_number[number] = item
+            number = None
+
+        explanation = str(
+            item.get("explanation")
+            or item.get("why_wrong")
+            or item.get("reason")
+            or item.get("details")
+            or ""
+        ).strip()
+        concept = str(
+            item.get("concept")
+            or item.get("topic")
+            or item.get("subtopic")
+            or ""
+        ).strip()
+        misconception = str(
+            item.get("misconception")
+            or item.get("mistake")
+            or item.get("avoid")
+            or ""
+        ).strip()
+
+        normalized.append({
+            "number": number,
+            "explanation": explanation,
+            "concept": concept,
+            "misconception": misconception,
+        })
+
+    # Some valid model responses omit item_number but preserve array order.
+    if len(normalized) == count and any(item["number"] is None for item in normalized):
+        for index, item in enumerate(normalized, 1):
+            if item["number"] is None:
+                item["number"] = index
+
+    by_number = {
+        item["number"]: item
+        for item in normalized
+        if item["number"] is not None
+        and 1 <= item["number"] <= count
+    }
 
     result = []
     for number in range(1, count + 1):
@@ -75,11 +166,11 @@ def parse_ai_explanations(raw_text, wrong_details):
         if not item:
             raise ValueError(f"Missing AI explanation for item {number}")
 
-        explanation = str(item.get("explanation", "")).strip()
-        concept = str(item.get("concept", "")).strip() or str(
+        explanation = item["explanation"]
+        concept = item["concept"] or str(
             source.get("subtopic") or source.get("topic") or "Core Concept"
-        )
-        misconception = str(item.get("misconception", "")).strip()
+        ).strip()
+        misconception = item["misconception"]
 
         if not explanation:
             raise ValueError(f"Empty AI explanation for item {number}")
@@ -95,7 +186,6 @@ def parse_ai_explanations(raw_text, wrong_details):
         )
 
     return result
-
 
 def build_fallback_explanations(wrong_details):
     """Provide a safe explanation when Gemini is temporarily unavailable."""
