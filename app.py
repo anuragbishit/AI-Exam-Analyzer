@@ -1719,10 +1719,23 @@ def generate_and_save_answer_explanations(conn, exam_id, student_id, wrong_detai
     if not wrong_details:
         return []
 
+    prompt = build_ai_explanation_prompt(wrong_details)
+
     try:
-        prompt = build_ai_explanation_prompt(wrong_details)
         ai_text = generate_ai_content(prompt)
-        explanations = parse_ai_explanations(ai_text, wrong_details)
+        try:
+            explanations = parse_ai_explanations(ai_text, wrong_details)
+        except Exception as parse_error:
+            print("ANSWER EXPLANATION PARSE ERROR:", parse_error)
+            retry_prompt = (
+                prompt
+                + "\n\nIMPORTANT RETRY: Your previous response did not match the required "
+                "schema. Return ONLY one valid JSON object with an \"explanations\" array. "
+                "Include exactly one object for every supplied incorrect answer. Number them "
+                "sequentially starting at 1. No markdown, no commentary, no extra keys."
+            )
+            retry_text = generate_ai_content(retry_prompt)
+            explanations = parse_ai_explanations(retry_text, wrong_details)
     except Exception as ai_error:
         print("ANSWER EXPLANATION AI ERROR:", ai_error)
         explanations = build_fallback_explanations(wrong_details)
