@@ -17,14 +17,6 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 from google import genai
-from google.genai import types
-from answer_explanation_engine import (
-    build_ai_explanation_prompt,
-    parse_ai_explanations,
-    build_fallback_explanations,
-    save_answer_explanations,
-    get_answer_explanations,
-)
 from question_analytics import ensure_question_attempts_table, save_question_attempts
 from mastery_engine import calculate_topic_mastery
 from knowledge_gap_engine import calculate_knowledge_gaps, build_knowledge_gap_prompt
@@ -66,22 +58,7 @@ app.config['SESSION_COOKIE_SECURE'] = False
 # PASTE YOUR REAL API KEY IN .env FILE OR BELOW
 API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# Bound every Gemini HTTP request so a stalled network/model request cannot
-# leave the Flask page spinning forever. HttpOptions applies to client requests.
-try:
-    GEMINI_TIMEOUT_MS = int(os.environ.get("GEMINI_TIMEOUT_MS", "10000"))
-except (TypeError, ValueError):
-    GEMINI_TIMEOUT_MS = 10000
-
-# Disable the SDK's own multi-attempt retry loop. Our application controls
-# model fallback explicitly so a request has a predictable upper bound.
-client = genai.Client(
-    api_key=API_KEY,
-    http_options=types.HttpOptions(
-        timeout=GEMINI_TIMEOUT_MS,
-        retry_options=types.HttpRetryOptions(attempts=1)
-    )
-)
+client = genai.Client(api_key=API_KEY)
 
 
 # ─────────────────────────────────────────────
@@ -228,29 +205,6 @@ def create_tables():
                 changed_days TEXT DEFAULT '',
                 reason TEXT NOT NULL,
                 created_at TEXT NOT NULL
-            )
-            '''
-        )
-
-        # STEP 7: persist AI explanations for incorrect answers.
-        cursor.execute(
-            '''
-            CREATE TABLE IF NOT EXISTS answer_explanations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                exam_id INTEGER NOT NULL,
-                student_id INTEGER NOT NULL,
-                question_index INTEGER NOT NULL,
-                question_text TEXT NOT NULL,
-                selected_answer TEXT,
-                correct_answer TEXT NOT NULL,
-                topic TEXT DEFAULT 'General',
-                subtopic TEXT DEFAULT 'General Concepts',
-                explanation TEXT NOT NULL,
-                concept TEXT NOT NULL,
-                misconception TEXT DEFAULT '',
-                generation_method TEXT NOT NULL DEFAULT 'gemini',
-                created_at TEXT NOT NULL,
-                UNIQUE(exam_id, student_id, question_index)
             )
             '''
         )
@@ -450,104 +404,6 @@ def get_recommendation(topic):
     return f'Review fundamental concepts of {topic} and practice related problems.'
 
 
-
-def build_dashboard_recommendations(topic_mastery, knowledge_gaps, topic_counts, question_summary):
-    """Build live recommendations from the student's current analytics."""
-    mastery_by_topic = {
-        str(item.get("topic", "")).strip(): item
-        for item in (topic_mastery or [])
-        if str(item.get("topic", "")).strip()
-    }
-    gaps_by_topic = {}
-    for gap in (knowledge_gaps or {}).get("gaps", []):
-        topic = str(gap.get("topic", "")).strip()
-        if topic:
-            current = gaps_by_topic.get(topic)
-            if current is None or gap.get("mastery", 100) < current.get("mastery", 100):
-                gaps_by_topic[topic] = gap
-
-    topics = set(topic_counts.keys()) | set(mastery_by_topic.keys()) | set(gaps_by_topic.keys())
-    recs = []
-
-    overall_time = 0.0
-    try:
-        overall_time = float(
-            question_summary["avg_response_time"]
-            if question_summary is not None else 0
-        )
-    except (TypeError, ValueError, KeyError, IndexError):
-        overall_time = 0.0
-
-    for topic in topics:
-        mastery = mastery_by_topic.get(topic, {})
-        gap = gaps_by_topic.get(topic, {})
-
-        score = int(mastery.get("mastery_score", gap.get("mastery", 0)) or 0)
-        accuracy = int(mastery.get("accuracy", gap.get("accuracy", 0)) or 0)
-        recent = int(mastery.get("recent_accuracy", gap.get("recent_accuracy", accuracy)) or 0)
-        attempts = int(mastery.get("attempts", gap.get("attempts", 0)) or 0)
-        avg_time = float(mastery.get("avg_response_time", gap.get("avg_response_time", 0)) or 0)
-        hits = int(topic_counts.get(topic, 0) or 0)
-
-        reasons = []
-        if score < 40:
-            reasons.append("mastery is critical")
-        elif score < 60:
-            reasons.append("mastery is weak")
-        elif score < 75:
-            reasons.append("mastery is still developing")
-
-        if attempts >= 3 and recent < accuracy:
-            reasons.append("recent accuracy has declined")
-        if gap:
-            gap_reasons = gap.get("reasons", [])
-            if gap_reasons:
-                reasons.extend(str(x) for x in gap_reasons[:2])
-        if overall_time > 0 and avg_time > overall_time * 1.35:
-            reasons.append("response time is above your average")
-        if hits:
-            reasons.append(f"{hits} wrong-answer hit{'s' if hits != 1 else ''}")
-
-        if score < 40:
-            priority = "Critical"
-            action = f"Prioritize {topic} first with focused concept review and targeted practice."
-        elif score < 60:
-            priority = "High"
-            action = f"Strengthen {topic} before adding new material; focus on your weakest concepts."
-        elif score < 75:
-            priority = "Medium"
-            action = f"Keep practicing {topic} until accuracy becomes consistently stronger."
-        else:
-            priority = "Maintain"
-            action = f"Maintain {topic} with spaced review and occasional mixed practice."
-
-        evidence = ", ".join(dict.fromkeys(reasons)) or "limited evidence so far"
-        subtopic = str(gap.get("subtopic", "")).strip()
-
-        recs.append({
-            "topic": topic,
-            "priority": priority,
-            "mastery": score,
-            "accuracy": accuracy,
-            "recent_accuracy": recent,
-            "attempts": attempts,
-            "avg_response_time": round(avg_time, 1),
-            "subtopic": subtopic,
-            "action": action,
-            "evidence": evidence
-        })
-
-    recs.sort(
-        key=lambda item: (
-            {"Critical": 0, "High": 1, "Medium": 2, "Maintain": 3}.get(item["priority"], 4),
-            item["mastery"],
-            -item["attempts"],
-            item["topic"].lower()
-        )
-    )
-    return recs[:8]
-
-
 # ─────────────────────────────────────────────
 # AI RESPONSE CLEANER
 # ─────────────────────────────────────────────
@@ -573,128 +429,59 @@ def clean_ai_response(text):
 # ─────────────────────────────────────────────
 
 def generate_ai_content(prompt):
-    """Generate Gemini content through a bounded REST request with explicit model fallback."""
+    """Generate AI content with fast fallback across currently supported Gemini Flash models."""
     import time
-    import requests
 
-    if not API_KEY:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
-
+    # Prefer the high-capacity, cost-efficient Flash-Lite model first.
+    # Fall back to newer Flash models when a model is temporarily busy.
     models = [
         "gemini-3.5-flash-lite",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
     ]
 
-    timeout_seconds = max(5, GEMINI_TIMEOUT_MS / 1000.0)
     last_error = None
 
-    generation_config = {
-        "responseMimeType": "application/json",
-        "maxOutputTokens": 8192,
-        "thinkingConfig": {
-            "thinkingLevel": "low"
-        }
-    }
-
-    for attempt, model in enumerate(models, 1):
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{model}:generateContent"
-        )
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": str(prompt)
-                        }
-                    ]
-                }
-            ],
-            "generationConfig": generation_config
-        }
-
-        started_at = time.monotonic()
-
-        print(
-            f"AI generation attempt {attempt}/{len(models)} using {model} "
-            f"(hard timeout={timeout_seconds:.1f}s, thinking=low)"
-        )
+    for attempt in range(len(models)):
+        model = models[attempt]
 
         try:
-            response = requests.post(
-                url,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": API_KEY,
-                },
-                json=payload,
-                timeout=timeout_seconds,
+            print(f"AI generation attempt {attempt + 1}/{len(models)} using {model}")
+
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt
             )
 
-            elapsed_ms = round((time.monotonic() - started_at) * 1000)
-            response_text = response.text
+            if response and getattr(response, "text", None):
+                print(f"AI generation succeeded using {model}")
+                return response.text
 
-            if response.ok:
-                body = response.json()
-                candidates = body.get("candidates") or []
-                if candidates:
-                    parts = (
-                        candidates[0]
-                        .get("content", {})
-                        .get("parts", [])
-                    )
-                    generated = "".join(
-                        str(part.get("text", ""))
-                        for part in parts
-                        if isinstance(part, dict) and part.get("text") is not None
-                    ).strip()
-
-                    if generated:
-                        print(
-                            f"AI generation succeeded using {model} "
-                            f"in {elapsed_ms}ms"
-                        )
-                        return generated
-
-                raise RuntimeError("Gemini returned no generated text")
-
-            # Read Google's error payload without exposing the API key.
-            try:
-                error_body = response.json()
-                error_message = (
-                    error_body.get("error", {}).get("message")
-                    or response_text[:500]
-                )
-            except ValueError:
-                error_message = response_text[:500]
-
-            raise RuntimeError(
-                f"HTTP {response.status_code}: {error_message}"
-            )
-
-        except requests.Timeout as e:
-            last_error = e
-            print(
-                f"AI generation timed out on {model} after "
-                f"{timeout_seconds:.1f}s"
-            )
-
-        except requests.RequestException as e:
-            last_error = e
-            print(f"AI network error on {model}: {e}")
+            last_error = Exception(f"Empty AI response from {model}")
 
         except Exception as e:
             last_error = e
+            message = str(e).lower()
+
+            transient = (
+                "503" in message
+                or "429" in message
+                or "unavailable" in message
+                or "high demand" in message
+                or "quota" in message
+            )
+
             print(f"AI generation failed on {model}: {e}")
 
-        # A model failure should never block the remaining fallback models.
-        if attempt < len(models):
-            time.sleep(1)
+            if not transient:
+                raise
 
-    raise last_error or RuntimeError("Gemini AI generation failed")
+            # Give the next model a small delay, but do not keep the browser
+            # waiting through a long retry loop.
+            if attempt < len(models) - 1:
+                time.sleep(2)
 
+    raise last_error or Exception("Gemini AI generation failed")
 
 # ─────────────────────────────────────────────
 # AI QUESTION VALIDATOR
@@ -1405,12 +1192,7 @@ def dashboard():
         topic_counts=topic_counts,
         chart_labels=chart_labels,
         chart_scores=chart_scores,
-        dashboard_recommendations=build_dashboard_recommendations(
-            topic_mastery,
-            knowledge_gaps,
-            topic_counts,
-            question_summary
-        ),
+        topic_recommendations=TOPIC_RECOMMENDATIONS,
         question_summary=question_summary,
         topic_mastery=topic_mastery,
         knowledge_gaps=knowledge_gaps,
@@ -1798,43 +1580,6 @@ def practice_from_mistakes():
 # SUBMIT EXAM
 # ─────────────────────────────────────────────
 
-
-def generate_and_save_answer_explanations(conn, exam_id, student_id, wrong_details):
-    """Generate Step 7 explanations and persist them without breaking exam results."""
-    if not wrong_details:
-        return []
-
-    prompt = build_ai_explanation_prompt(wrong_details)
-
-    try:
-        ai_text = generate_ai_content(prompt)
-        try:
-            explanations = parse_ai_explanations(ai_text, wrong_details)
-        except Exception as parse_error:
-            print("ANSWER EXPLANATION PARSE ERROR:", parse_error)
-            retry_prompt = (
-                prompt
-                + "\n\nIMPORTANT RETRY: Your previous response did not match the required "
-                "schema. Return ONLY one valid JSON object with an \"explanations\" array. "
-                "Include exactly one object for every supplied incorrect answer. Number them "
-                "sequentially starting at 1. No markdown, no commentary, no extra keys."
-            )
-            retry_text = generate_ai_content(retry_prompt)
-            explanations = parse_ai_explanations(retry_text, wrong_details)
-    except Exception as ai_error:
-        print("ANSWER EXPLANATION AI ERROR:", ai_error)
-        explanations = build_fallback_explanations(wrong_details)
-
-    save_answer_explanations(
-        conn,
-        exam_id,
-        student_id,
-        wrong_details,
-        explanations
-    )
-    return explanations
-
-
 @app.route('/submit_exam', methods=['POST'])
 def submit_exam():
 
@@ -1881,7 +1626,7 @@ def submit_exam():
 
     with sqlite3.connect(DATABASE) as conn:
 
-        cursor = conn.execute(
+        conn.execute(
             '''
             INSERT INTO exam_history
             (student_id, student_name, score, total_questions, weak_topics, exam_date, is_global, subject_area)
@@ -1898,20 +1643,7 @@ def submit_exam():
                 session.get('exam_topic', 'General')
             )
         )
-        exam_id = cursor.lastrowid
 
-        explanations = generate_and_save_answer_explanations(
-            conn,
-            exam_id,
-            session['student_id'],
-            wrong_details
-        )
-        for index, explanation in enumerate(explanations):
-            if index < len(wrong_details):
-                wrong_details[index]['ai_explanation'] = explanation.get('explanation', '')
-                wrong_details[index]['ai_concept'] = explanation.get('concept', '')
-                wrong_details[index]['ai_misconception'] = explanation.get('misconception', '')
-                wrong_details[index]['ai_generation_method'] = explanation.get('generation_method', '')
         conn.commit()
 
     percentage = round(score * 100 / len(questions))
@@ -1935,8 +1667,7 @@ def submit_exam():
         percentage=percentage,
         grade=grade,
         wrong_details=wrong_details,
-        unique_weak=unique_weak,
-        answer_explanations=explanations
+        unique_weak=unique_weak
     )
 
 
@@ -2000,43 +1731,6 @@ def save_exam_api():
             exam_mode
         ) if questions else 0
 
-        wrong_details = []
-        for index, q in enumerate(questions):
-            response = responses[index] if index < len(responses) and isinstance(responses[index], dict) else {}
-            selected_index = response.get('selected_index')
-            try:
-                selected_index = int(selected_index) if selected_index is not None else None
-            except (TypeError, ValueError):
-                selected_index = None
-
-            selected_answer = (
-                q.get('options', [])[selected_index]
-                if selected_index is not None
-                and 0 <= selected_index < len(q.get('options', []))
-                else 'Not answered'
-            )
-            correct_answer = str(q.get('answer', '')).strip()
-            if str(selected_answer).strip() == correct_answer:
-                continue
-
-            wrong_details.append({
-                'question': q.get('question', ''),
-                'your_answer': selected_answer,
-                'correct_answer': correct_answer,
-                'topic': q.get('topic', 'General'),
-                'subtopic': q.get('subtopic') or q.get('topic', 'General'),
-                'recommendation': q.get('recommendation') or get_recommendation(q.get('topic', 'General')),
-                'options': q.get('options', [])
-            })
-
-        with get_db() as explanation_conn:
-            explanations = generate_and_save_answer_explanations(
-                explanation_conn,
-                exam_id,
-                session['student_id'],
-                wrong_details
-            )
-
         # Step 6C: adapt remaining study-plan days from the newly stored
         # question-level analytics. Completed days are preserved.
         if tracked:
@@ -2049,8 +1743,7 @@ def save_exam_api():
             'exam_id': exam_id,
             'tracked_questions': tracked,
             'study_plan_adapted': adaptive_result.get('adapted', False),
-            'study_plan_changed_days': adaptive_result.get('changed_days', []),
-            'answer_explanations': [dict(item) for item in explanations]
+            'study_plan_changed_days': adaptive_result.get('changed_days', [])
         }
     except Exception as e:
         print("ANALYTICS SAVE ERROR:", e)
