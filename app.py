@@ -180,7 +180,36 @@ def create_tables():
         if 'completed_at' not in plan_columns:
             cursor.execute("ALTER TABLE study_plan_items ADD COLUMN completed_at TEXT")
 
-        # Step 6C: adaptive study-plan metadata and audit history.\n        try:\n            cursor.execute("ALTER TABLE study_plans ADD COLUMN adaptation_count INTEGER DEFAULT 0")\n        except:\n            pass\n        try:\n            cursor.execute("ALTER TABLE study_plans ADD COLUMN last_adapted_at TEXT")\n        except:\n            pass\n        try:\n            cursor.execute("ALTER TABLE study_plans ADD COLUMN last_adaptation_reason TEXT")\n        except:\n            pass\n\n        cursor.execute(\n            '''\n            CREATE TABLE IF NOT EXISTS study_plan_adaptations (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                plan_id INTEGER NOT NULL,\n                student_id INTEGER NOT NULL,\n                trigger_type TEXT NOT NULL,\n                generation_method TEXT NOT NULL,\n                changed_days TEXT DEFAULT '',\n                reason TEXT NOT NULL,\n                created_at TEXT NOT NULL\n            )\n            '''\n        )\n\n        plan_table_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plans)').fetchall()}
+        # Step 6C: adaptive study-plan metadata and audit history.
+        try:
+            cursor.execute("ALTER TABLE study_plans ADD COLUMN adaptation_count INTEGER DEFAULT 0")
+        except:
+            pass
+        try:
+            cursor.execute("ALTER TABLE study_plans ADD COLUMN last_adapted_at TEXT")
+        except:
+            pass
+        try:
+            cursor.execute("ALTER TABLE study_plans ADD COLUMN last_adaptation_reason TEXT")
+        except:
+            pass
+
+        cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS study_plan_adaptations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                plan_id INTEGER NOT NULL,
+                student_id INTEGER NOT NULL,
+                trigger_type TEXT NOT NULL,
+                generation_method TEXT NOT NULL,
+                changed_days TEXT DEFAULT '',
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            '''
+        )
+
+        plan_table_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plans)').fetchall()}
         if 'generation_method' not in plan_table_columns:
             cursor.execute("ALTER TABLE study_plans ADD COLUMN generation_method TEXT DEFAULT 'rule_based'")
 
