@@ -455,8 +455,11 @@ def build_dashboard_recommendations(topic_mastery, knowledge_gaps, topic_counts,
 
     overall_time = 0.0
     try:
-        overall_time = float((question_summary or {}).get("avg_response_time", 0) or 0)
-    except (TypeError, ValueError):
+        overall_time = float(
+            question_summary["avg_response_time"]
+            if question_summary is not None else 0
+        )
+    except (TypeError, ValueError, KeyError, IndexError):
         overall_time = 0.0
 
     for topic in topics:
