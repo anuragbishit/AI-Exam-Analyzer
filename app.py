@@ -17,6 +17,13 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 from google import genai
+from answer_explanation_engine import (
+    build_ai_explanation_prompt,
+    parse_ai_explanations,
+    build_fallback_explanations,
+    save_answer_explanations,
+    get_answer_explanations,
+)
 from question_analytics import ensure_question_attempts_table, save_question_attempts
 from mastery_engine import calculate_topic_mastery
 from knowledge_gap_engine import calculate_knowledge_gaps, build_knowledge_gap_prompt
@@ -205,6 +212,29 @@ def create_tables():
                 changed_days TEXT DEFAULT '',
                 reason TEXT NOT NULL,
                 created_at TEXT NOT NULL
+            )
+            '''
+        )
+
+        # STEP 7: persist AI explanations for incorrect answers.
+        cursor.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS answer_explanations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exam_id INTEGER NOT NULL,
+                student_id INTEGER NOT NULL,
+                question_index INTEGER NOT NULL,
+                question_text TEXT NOT NULL,
+                selected_answer TEXT,
+                correct_answer TEXT NOT NULL,
+                topic TEXT DEFAULT 'General',
+                subtopic TEXT DEFAULT 'General Concepts',
+                explanation TEXT NOT NULL,
+                concept TEXT NOT NULL,
+                misconception TEXT DEFAULT '',
+                generation_method TEXT NOT NULL DEFAULT 'gemini',
+                created_at TEXT NOT NULL,
+                UNIQUE(exam_id, student_id, question_index)
             )
             '''
         )
@@ -1580,6 +1610,30 @@ def practice_from_mistakes():
 # SUBMIT EXAM
 # ─────────────────────────────────────────────
 
+
+def generate_and_save_answer_explanations(conn, exam_id, student_id, wrong_details):
+    """Generate Step 7 explanations and persist them without breaking exam results."""
+    if not wrong_details:
+        return []
+
+    try:
+        prompt = build_ai_explanation_prompt(wrong_details)
+        ai_text = generate_ai_content(prompt)
+        explanations = parse_ai_explanations(ai_text, wrong_details)
+    except Exception as ai_error:
+        print("ANSWER EXPLANATION AI ERROR:", ai_error)
+        explanations = build_fallback_explanations(wrong_details)
+
+    save_answer_explanations(
+        conn,
+        exam_id,
+        student_id,
+        wrong_details,
+        explanations
+    )
+    return explanations
+
+
 @app.route('/submit_exam', methods=['POST'])
 def submit_exam():
 
@@ -1626,7 +1680,7 @@ def submit_exam():
 
     with sqlite3.connect(DATABASE) as conn:
 
-        conn.execute(
+        cursor = conn.execute(
             '''
             INSERT INTO exam_history
             (student_id, student_name, score, total_questions, weak_topics, exam_date, is_global, subject_area)
@@ -1643,7 +1697,14 @@ def submit_exam():
                 session.get('exam_topic', 'General')
             )
         )
+        exam_id = cursor.lastrowid
 
+        explanations = generate_and_save_answer_explanations(
+            conn,
+            exam_id,
+            session['student_id'],
+            wrong_details
+        )
         conn.commit()
 
     percentage = round(score * 100 / len(questions))
@@ -1667,7 +1728,8 @@ def submit_exam():
         percentage=percentage,
         grade=grade,
         wrong_details=wrong_details,
-        unique_weak=unique_weak
+        unique_weak=unique_weak,
+        answer_explanations=explanations
     )
 
 
@@ -1731,6 +1793,43 @@ def save_exam_api():
             exam_mode
         ) if questions else 0
 
+        wrong_details = []
+        for index, q in enumerate(questions):
+            response = responses[index] if index < len(responses) and isinstance(responses[index], dict) else {}
+            selected_index = response.get('selected_index')
+            try:
+                selected_index = int(selected_index) if selected_index is not None else None
+            except (TypeError, ValueError):
+                selected_index = None
+
+            selected_answer = (
+                q.get('options', [])[selected_index]
+                if selected_index is not None
+                and 0 <= selected_index < len(q.get('options', []))
+                else 'Not answered'
+            )
+            correct_answer = str(q.get('answer', '')).strip()
+            if str(selected_answer).strip() == correct_answer:
+                continue
+
+            wrong_details.append({
+                'question': q.get('question', ''),
+                'your_answer': selected_answer,
+                'correct_answer': correct_answer,
+                'topic': q.get('topic', 'General'),
+                'subtopic': q.get('subtopic') or q.get('topic', 'General'),
+                'recommendation': q.get('recommendation') or get_recommendation(q.get('topic', 'General')),
+                'options': q.get('options', [])
+            })
+
+        with get_db() as explanation_conn:
+            explanations = generate_and_save_answer_explanations(
+                explanation_conn,
+                exam_id,
+                session['student_id'],
+                wrong_details
+            )
+
         # Step 6C: adapt remaining study-plan days from the newly stored
         # question-level analytics. Completed days are preserved.
         if tracked:
@@ -1743,7 +1842,8 @@ def save_exam_api():
             'exam_id': exam_id,
             'tracked_questions': tracked,
             'study_plan_adapted': adaptive_result.get('adapted', False),
-            'study_plan_changed_days': adaptive_result.get('changed_days', [])
+            'study_plan_changed_days': adaptive_result.get('changed_days', []),
+            'answer_explanations': [dict(item) for item in explanations]
         }
     except Exception as e:
         print("ANALYTICS SAVE ERROR:", e)
