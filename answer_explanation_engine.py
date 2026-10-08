@@ -92,6 +92,17 @@ def parse_ai_explanations(raw_text, wrong_details):
         raw_items = data.get("explanations")
         if raw_items is None:
             raw_items = data.get("items")
+
+        # Gemini may return explanations as {"1": {...}, "2": {...}}.
+        if isinstance(raw_items, dict):
+            mapped_items = []
+            for key, value in raw_items.items():
+                if isinstance(value, dict):
+                    value = dict(value)
+                    value.setdefault("item_number", key)
+                    mapped_items.append(value)
+            raw_items = mapped_items
+
         if raw_items is None:
             # Support a single explanation object when exactly one answer is wrong.
             if count == 1 and (
