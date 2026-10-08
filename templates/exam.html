@@ -386,34 +386,6 @@
       .options-grid { grid-template-columns: 1fr; }
       .exam-meta { gap: 10px; }
     }
-    .ai-explanation-box {
-      margin-top: 12px;
-      padding: 14px 16px;
-      border-radius: 10px;
-      background: rgba(99,102,241,.07);
-      border: 1px solid rgba(99,102,241,.22);
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.6;
-    }
-    .ai-explanation-box .ai-title {
-      color: var(--text);
-      font-weight: 700;
-      margin-bottom: 7px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .ai-explanation-box .ai-section {
-      margin-top: 7px;
-    }
-    .ai-explanation-box .ai-label {
-      color: var(--text);
-      font-weight: 600;
-    }
-    .ai-explanation-loading {
-      opacity: .75;
-    }
   </style>
 </head>
 <body>
@@ -683,15 +655,6 @@
     switchTab('result');
   }
 
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
   function calculateResult() {
     let correct = 0;
     let weakTopics = [];
@@ -720,49 +683,7 @@
           response_time_seconds: questionResponseTimes[q.id] || 0
         }))
       })
-    }).then(async response => {
-      const data = await response.json().catch(() => ({}));
-
-      if (Array.isArray(data.answer_explanations)) {
-        data.answer_explanations.forEach(item => {
-          const target = document.getElementById(`ai-explanation-${Number(item.question_index) - 1}`);
-          if (!target) return;
-
-          const methodLabel = item.generation_method === 'gemini'
-            ? 'Gemini AI'
-            : 'Safe fallback';
-
-          target.classList.remove('ai-explanation-loading');
-          target.innerHTML = `
-            <div class="ai-title">
-              🤖 AI Explanation
-              <span style="font-size:10px;color:var(--muted);font-weight:600;">• ${methodLabel}</span>
-            </div>
-            <div class="ai-section">
-              <span class="ai-label">Why your answer was incorrect:</span>
-              ${escapeHtml(item.explanation)}
-            </div>
-            <div class="ai-section">
-              <span class="ai-label">Concept:</span>
-              ${escapeHtml(item.concept)}
-            </div>
-            ${item.misconception
-              ? `<div class="ai-section"><span class="ai-label">Avoid this misconception:</span> ${escapeHtml(item.misconception)}</div>`
-              : ''}
-          `;
-        });
-      }
-
-      if (data.study_plan_adapted) {
-        showToast('🔄 Your remaining study plan was adapted to your latest performance!');
-      }
-    }).catch(err => {
-      console.error("Failed to save exam", err);
-      document.querySelectorAll('.ai-explanation-loading').forEach(el => {
-        el.classList.remove('ai-explanation-loading');
-        el.innerHTML = '<div class="ai-title">🤖 AI Explanation</div>Explanation could not be loaded right now. Your study recommendation is still available below.';
-      });
-    });
+    }).catch(err => console.error("Failed to save exam", err));
 
     const header = document.getElementById('result-header');
     header.innerHTML = `
@@ -785,14 +706,10 @@
             <div>
               ${isCorrect
                 ? `<span class="answer-chip chip-correct">✓ Sahi: ${q.options[q.correct]}</span>`
-                : `<span class="answer-chip chip-wrong">✗ Aapka jawab: ${escapeHtml(given !== undefined ? q.options[given] : 'Chhod diya')}</span>
-                   <span class="answer-chip chip-correct">✓ Sahi: ${escapeHtml(q.options[q.correct])}</span>
-                   <div class="ai-explanation-box ai-explanation-loading" id="ai-explanation-${idx}">
-                     <div class="ai-title">🤖 AI Explanation</div>
-                     Generating a clear explanation of this mistake…
-                   </div>
+                : `<span class="answer-chip chip-wrong">✗ Aapka jawab: ${given !== undefined ? q.options[given] : 'Chhod diya'}</span>
+                   <span class="answer-chip chip-correct">✓ Sahi: ${q.options[q.correct]}</span>
                    <div style="margin-top: 12px; font-size: 13px; color: var(--accent); background: rgba(200, 255, 0, 0.05); padding: 10px 14px; border-radius: 8px; border: 1px dashed var(--accent);">
-                     💡 <b>Study Recommendation:</b> ${q.recommendation ? escapeHtml(q.recommendation) : `To improve your accuracy, we highly recommend reviewing the fundamental concepts and practicing more questions related to <b>${escapeHtml(q.topic || 'this topic')}</b>.`}
+                     💡 <b>Study Recommendation:</b> ${q.recommendation ? q.recommendation : `To improve your accuracy, we highly recommend reviewing the fundamental concepts and practicing more questions related to <b>${q.topic || 'this topic'}</b>.`}
                    </div>`
               }
             </div>
