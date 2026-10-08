@@ -20,7 +20,7 @@ from google import genai
 from question_analytics import ensure_question_attempts_table, save_question_attempts
 from mastery_engine import calculate_topic_mastery
 from knowledge_gap_engine import calculate_knowledge_gaps, build_knowledge_gap_prompt
-from study_plan_engine import build_draft_study_plan, build_ai_study_plan_prompt, parse_ai_study_plan, save_study_plan, get_active_study_plan, toggle_plan_item
+from study_plan_engine import (\n    build_draft_study_plan, build_ai_study_plan_prompt, parse_ai_study_plan,\n    build_ai_adaptive_study_plan_prompt, parse_ai_adaptive_study_plan,\n    save_study_plan, get_active_study_plan, toggle_plan_item,\n    auto_adapt_active_study_plan, adapt_study_plan, get_recent_plan_adaptations\n)
 
 load_dotenv()
 
@@ -174,7 +174,7 @@ def create_tables():
         if 'completed_at' not in plan_columns:
             cursor.execute("ALTER TABLE study_plan_items ADD COLUMN completed_at TEXT")
 
-        plan_table_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plans)').fetchall()}
+        # Step 6C: adaptive study-plan metadata and audit history.\n        try:\n            cursor.execute("ALTER TABLE study_plans ADD COLUMN adaptation_count INTEGER DEFAULT 0")\n        except:\n            pass\n        try:\n            cursor.execute("ALTER TABLE study_plans ADD COLUMN last_adapted_at TEXT")\n        except:\n            pass\n        try:\n            cursor.execute("ALTER TABLE study_plans ADD COLUMN last_adaptation_reason TEXT")\n        except:\n            pass\n\n        cursor.execute(\n            '''\n            CREATE TABLE IF NOT EXISTS study_plan_adaptations (\n                id INTEGER PRIMARY KEY AUTOINCREMENT,\n                plan_id INTEGER NOT NULL,\n                student_id INTEGER NOT NULL,\n                trigger_type TEXT NOT NULL,\n                generation_method TEXT NOT NULL,\n                changed_days TEXT DEFAULT '',\n                reason TEXT NOT NULL,\n                created_at TEXT NOT NULL\n            )\n            '''\n        )\n\n        plan_table_columns = {row[1] for row in cursor.execute('PRAGMA table_info(study_plans)').fetchall()}
         if 'generation_method' not in plan_table_columns:
             cursor.execute("ALTER TABLE study_plans ADD COLUMN generation_method TEXT DEFAULT 'rule_based'")
 
@@ -894,6 +894,94 @@ def generate_study_plan():
         return redirect('/study_plan?error=1')
 
 
+
+@app.route('/study_plan/adapt', methods=['POST'])
+def adapt_study_plan_route():
+    if 'student_id' not in session:
+        return redirect('/login')
+
+    sid = session['student_id']
+    conn = get_db()
+
+    try:
+        plan = get_active_study_plan(conn, sid)
+        if not plan:
+            conn.close()
+            return redirect('/study_plan?error=no_plan')
+
+        pending = [item for item in plan["items"] if item["status"] != "completed"]
+        if not pending:
+            conn.close()
+            return redirect('/study_plan?error=completed')
+
+        topic_mastery = calculate_topic_mastery(conn, sid)
+        knowledge_gaps = calculate_knowledge_gaps(conn, sid)
+        reason = "Student requested adaptive plan update using the latest performance data."
+
+        try:
+            prompt = build_ai_adaptive_study_plan_prompt(
+                plan,
+                topic_mastery,
+                knowledge_gaps
+            )
+            ai_text = generate_ai_content(prompt)
+            adapted_items = parse_ai_adaptive_study_plan(
+                ai_text,
+                plan,
+                topic_mastery,
+                knowledge_gaps
+            )
+            method = "gemini_adaptive"
+        except Exception as ai_error:
+            print("ADAPTIVE STUDY PLAN AI ERROR:", ai_error)
+            from study_plan_engine import build_adaptive_fallback_items
+            adapted_items = build_adaptive_fallback_items(
+                plan,
+                topic_mastery,
+                knowledge_gaps
+            )
+            method = "rule_based_adaptive_fallback"
+
+        changed_days = adapt_study_plan(
+            conn,
+            sid,
+            plan["id"],
+            adapted_items,
+            method,
+            reason,
+            trigger_type="manual_adaptation"
+        )
+        conn.close()
+
+        return redirect(
+            '/study_plan?adapted=1&changed='
+            + ','.join(str(day) for day in changed_days)
+        )
+
+    except Exception as e:
+        conn.close()
+        print("ADAPTIVE STUDY PLAN ERROR:", e)
+        return redirect('/study_plan?error=1')
+
+
+# Automatic Step 6C hook: every newly tracked exam recalculates the
+# remaining plan, while completed items stay locked.
+def maybe_auto_adapt_study_plan(student_id):
+    conn = get_db()
+    try:
+        result = auto_adapt_active_study_plan(
+            conn,
+            student_id,
+            reason="New exam performance detected; recalculated remaining study days."
+        )
+        return result
+    except Exception as e:
+        print("AUTO ADAPTIVE STUDY PLAN ERROR:", e)
+        return {"adapted": False, "reason": str(e)}
+    finally:
+        conn.close()
+
+
 @app.route('/study_plan/item/<int:item_id>/toggle', methods=['POST'])
 def toggle_study_plan_item(item_id):
     if 'student_id' not in session:
@@ -1603,10 +1691,19 @@ def save_exam_api():
             exam_mode
         ) if questions else 0
 
+        # Step 6C: adapt remaining study-plan days from the newly stored
+        # question-level analytics. Completed days are preserved.
+        if tracked:
+            adaptive_result = maybe_auto_adapt_study_plan(session['student_id'])
+        else:
+            adaptive_result = {"adapted": False, "reason": "no tracked questions"}
+
         return {
             'success': True,
             'exam_id': exam_id,
-            'tracked_questions': tracked
+            'tracked_questions': tracked,
+            'study_plan_adapted': adaptive_result.get('adapted', False),
+            'study_plan_changed_days': adaptive_result.get('changed_days', [])
         }
     except Exception as e:
         print("ANALYTICS SAVE ERROR:", e)
