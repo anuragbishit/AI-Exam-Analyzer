@@ -725,7 +725,7 @@
 
       if (Array.isArray(data.answer_explanations)) {
         data.answer_explanations.forEach(item => {
-          const target = document.getElementById(\`ai-explanation-\${Number(item.question_index) - 1}\`);
+          const target = document.getElementById(`ai-explanation-${Number(item.question_index) - 1}`);
           if (!target) return;
 
           const methodLabel = item.generation_method === 'gemini'
@@ -733,23 +733,23 @@
             : 'Safe fallback';
 
           target.classList.remove('ai-explanation-loading');
-          target.innerHTML = \`
+          target.innerHTML = `
             <div class="ai-title">
               🤖 AI Explanation
-              <span style="font-size:10px;color:var(--muted);font-weight:600;">• \${methodLabel}</span>
+              <span style="font-size:10px;color:var(--muted);font-weight:600;">• ${methodLabel}</span>
             </div>
             <div class="ai-section">
               <span class="ai-label">Why your answer was incorrect:</span>
-              \${escapeHtml(item.explanation)}
+              ${escapeHtml(item.explanation)}
             </div>
             <div class="ai-section">
               <span class="ai-label">Concept:</span>
-              \${escapeHtml(item.concept)}
+              ${escapeHtml(item.concept)}
             </div>
-            \${item.misconception
-              ? \`<div class="ai-section"><span class="ai-label">Avoid this misconception:</span> \${escapeHtml(item.misconception)}</div>\`
+            ${item.misconception
+              ? `<div class="ai-section"><span class="ai-label">Avoid this misconception:</span> ${escapeHtml(item.misconception)}</div>`
               : ''}
-          \`;
+          `;
         });
       }
 
