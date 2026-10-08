@@ -34,6 +34,17 @@
     .answer-row .tag { flex-shrink:0; padding:3px 10px; border-radius:6px; font-size:12px; font-weight:600; }
     .tag-wrong   { background:rgba(239,68,68,.1);   color:#ef4444; }
     .tag-correct { background:rgba(16,185,129,.1);  color:#10b981; }
+    .ai-explanation-box {
+        background:rgba(99,102,241,.07); border:1px solid rgba(99,102,241,.22);
+        border-radius:10px; padding:14px 16px; margin-top:12px; font-size:13px;
+        color:var(--muted); line-height:1.6;
+    }
+    .ai-explanation-box .ai-title {
+        color:var(--text); font-weight:700; margin-bottom:8px;
+        display:flex; align-items:center; gap:7px;
+    }
+    .ai-explanation-box .ai-section { margin-top:7px; }
+    .ai-explanation-box .ai-label { color:var(--text); font-weight:600; }
     .rec-box {
         background:rgba(59,130,246,.06); border:1px solid rgba(59,130,246,.15);
         border-radius:10px; padding:12px 14px; margin-top:12px; font-size:13px; color:var(--muted);
@@ -97,6 +108,34 @@
                     <div class="tag tag-correct">Correct Answer</div>
                     <div>{{ item.correct_answer }}</div>
                 </div>
+                {% if item.ai_explanation %}
+                <div class="ai-explanation-box">
+                    <div class="ai-title">
+                        🤖 AI Explanation
+                        {% if item.ai_generation_method == 'gemini' %}
+                        <span style="font-size:10px;color:var(--muted);font-weight:600;">• Gemini AI</span>
+                        {% else %}
+                        <span style="font-size:10px;color:var(--muted);font-weight:600;">• Safe fallback</span>
+                        {% endif %}
+                    </div>
+                    <div class="ai-section">
+                        <span class="ai-label">Why your answer was incorrect:</span>
+                        {{ item.ai_explanation }}
+                    </div>
+                    {% if item.ai_concept %}
+                    <div class="ai-section">
+                        <span class="ai-label">Concept:</span>
+                        {{ item.ai_concept }}
+                    </div>
+                    {% endif %}
+                    {% if item.ai_misconception %}
+                    <div class="ai-section">
+                        <span class="ai-label">Avoid this misconception:</span>
+                        {{ item.ai_misconception }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 {% if item.recommendation %}
                 <div class="rec-box">
                     <i class="fa-solid fa-lightbulb"></i>
