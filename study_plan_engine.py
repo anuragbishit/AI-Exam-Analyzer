@@ -568,7 +568,7 @@ def build_adaptive_fallback_items(active_plan, topic_mastery, knowledge_gaps):
     return result
 
 
-def adapt_study_plan(conn, student_id, plan_id, adapted_items, generation_method, reason):
+def adapt_study_plan(conn, student_id, plan_id, adapted_items, generation_method, reason, trigger_type="exam_completed"):
     """Update only pending items and log the adaptation event."""
     plan_row = conn.execute(
         """
@@ -652,7 +652,7 @@ def adapt_study_plan(conn, student_id, plan_id, adapted_items, generation_method
         (
             plan_id,
             student_id,
-            "exam_completed",
+            trigger_type,
             generation_method,
             ",".join(str(day) for day in updated_days),
             reason,
