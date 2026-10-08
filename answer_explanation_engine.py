@@ -5,7 +5,7 @@ import json
 def build_ai_explanation_prompt(wrong_details):
     """Build one grounded Gemini prompt for the student's incorrect answers."""
     items = []
-    for index, item in enumerate(wrong_details[:12], 1):
+    for index, item in enumerate(wrong_details, 1):
         items.append(
             {
                 "item_number": index,
@@ -100,7 +100,7 @@ def parse_ai_explanations(raw_text, wrong_details):
 def build_fallback_explanations(wrong_details):
     """Provide a safe explanation when Gemini is temporarily unavailable."""
     result = []
-    for index, item in enumerate(wrong_details[:12], 1):
+    for index, item in enumerate(wrong_details, 1):
         your_answer = str(item.get("your_answer", "Not answered")).strip()
         correct_answer = str(item.get("correct_answer", "")).strip()
         concept = str(
@@ -141,7 +141,7 @@ def save_answer_explanations(conn, exam_id, student_id, wrong_details, explanati
     rows = []
 
     by_index = {int(item["question_index"]): item for item in explanations}
-    for index, source in enumerate(wrong_details[:12], 1):
+    for index, source in enumerate(wrong_details, 1):
         generated = by_index.get(index)
         if not generated:
             continue
@@ -164,9 +164,13 @@ def save_answer_explanations(conn, exam_id, student_id, wrong_details, explanati
         )
 
     if rows:
+        conn.execute(
+            "DELETE FROM answer_explanations WHERE exam_id=? AND student_id=?",
+            (exam_id, student_id),
+        )
         conn.executemany(
             """
-            INSERT OR REPLACE INTO answer_explanations
+            INSERT INTO answer_explanations
             (exam_id, student_id, question_index, question_text,
              selected_answer, correct_answer, topic, subtopic,
              explanation, concept, misconception, generation_method, created_at)
