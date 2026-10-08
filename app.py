@@ -17,6 +17,7 @@ from email.mime.text import MIMEText
 from dotenv import load_dotenv
 
 from google import genai
+from google.genai import types
 from answer_explanation_engine import (
     build_ai_explanation_prompt,
     parse_ai_explanations,
@@ -65,7 +66,17 @@ app.config['SESSION_COOKIE_SECURE'] = False
 # PASTE YOUR REAL API KEY IN .env FILE OR BELOW
 API_KEY = os.environ.get("GEMINI_API_KEY")
 
-client = genai.Client(api_key=API_KEY)
+# Bound every Gemini HTTP request so a stalled network/model request cannot
+# leave the Flask page spinning forever. HttpOptions applies to client requests.
+try:
+    GEMINI_TIMEOUT_MS = int(os.environ.get("GEMINI_TIMEOUT_MS", "15000"))
+except (TypeError, ValueError):
+    GEMINI_TIMEOUT_MS = 15000
+
+client = genai.Client(
+    api_key=API_KEY,
+    http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
+)
 
 
 # ─────────────────────────────────────────────
@@ -574,7 +585,10 @@ def generate_ai_content(prompt):
         model = models[attempt]
 
         try:
-            print(f"AI generation attempt {attempt + 1}/{len(models)} using {model}")
+            print(
+                f"AI generation attempt {attempt + 1}/{len(models)} "
+                f"using {model} (timeout={GEMINI_TIMEOUT_MS}ms)"
+            )
 
             response = client.models.generate_content(
                 model=model,
@@ -597,6 +611,8 @@ def generate_ai_content(prompt):
                 or "unavailable" in message
                 or "high demand" in message
                 or "quota" in message
+                or "timeout" in message
+                or "timed out" in message
             )
 
             print(f"AI generation failed on {model}: {e}")
