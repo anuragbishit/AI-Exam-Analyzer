@@ -434,6 +434,101 @@ def get_recommendation(topic):
     return f'Review fundamental concepts of {topic} and practice related problems.'
 
 
+
+def build_dashboard_recommendations(topic_mastery, knowledge_gaps, topic_counts, question_summary):
+    """Build live recommendations from the student's current analytics."""
+    mastery_by_topic = {
+        str(item.get("topic", "")).strip(): item
+        for item in (topic_mastery or [])
+        if str(item.get("topic", "")).strip()
+    }
+    gaps_by_topic = {}
+    for gap in (knowledge_gaps or {}).get("gaps", []):
+        topic = str(gap.get("topic", "")).strip()
+        if topic:
+            current = gaps_by_topic.get(topic)
+            if current is None or gap.get("mastery", 100) < current.get("mastery", 100):
+                gaps_by_topic[topic] = gap
+
+    topics = set(topic_counts.keys()) | set(mastery_by_topic.keys()) | set(gaps_by_topic.keys())
+    recs = []
+
+    overall_time = 0.0
+    try:
+        overall_time = float((question_summary or {}).get("avg_response_time", 0) or 0)
+    except (TypeError, ValueError):
+        overall_time = 0.0
+
+    for topic in topics:
+        mastery = mastery_by_topic.get(topic, {})
+        gap = gaps_by_topic.get(topic, {})
+
+        score = int(mastery.get("mastery_score", gap.get("mastery", 0)) or 0)
+        accuracy = int(mastery.get("accuracy", gap.get("accuracy", 0)) or 0)
+        recent = int(mastery.get("recent_accuracy", gap.get("recent_accuracy", accuracy)) or 0)
+        attempts = int(mastery.get("attempts", gap.get("attempts", 0)) or 0)
+        avg_time = float(mastery.get("avg_response_time", gap.get("avg_response_time", 0)) or 0)
+        hits = int(topic_counts.get(topic, 0) or 0)
+
+        reasons = []
+        if score < 40:
+            reasons.append("mastery is critical")
+        elif score < 60:
+            reasons.append("mastery is weak")
+        elif score < 75:
+            reasons.append("mastery is still developing")
+
+        if attempts >= 3 and recent < accuracy:
+            reasons.append("recent accuracy has declined")
+        if gap:
+            gap_reasons = gap.get("reasons", [])
+            if gap_reasons:
+                reasons.extend(str(x) for x in gap_reasons[:2])
+        if overall_time > 0 and avg_time > overall_time * 1.35:
+            reasons.append("response time is above your average")
+        if hits:
+            reasons.append(f"{hits} wrong-answer hit{'s' if hits != 1 else ''}")
+
+        if score < 40:
+            priority = "Critical"
+            action = f"Prioritize {topic} first with focused concept review and targeted practice."
+        elif score < 60:
+            priority = "High"
+            action = f"Strengthen {topic} before adding new material; focus on your weakest concepts."
+        elif score < 75:
+            priority = "Medium"
+            action = f"Keep practicing {topic} until accuracy becomes consistently stronger."
+        else:
+            priority = "Maintain"
+            action = f"Maintain {topic} with spaced review and occasional mixed practice."
+
+        evidence = ", ".join(dict.fromkeys(reasons)) or "limited evidence so far"
+        subtopic = str(gap.get("subtopic", "")).strip()
+
+        recs.append({
+            "topic": topic,
+            "priority": priority,
+            "mastery": score,
+            "accuracy": accuracy,
+            "recent_accuracy": recent,
+            "attempts": attempts,
+            "avg_response_time": round(avg_time, 1),
+            "subtopic": subtopic,
+            "action": action,
+            "evidence": evidence
+        })
+
+    recs.sort(
+        key=lambda item: (
+            {"Critical": 0, "High": 1, "Medium": 2, "Maintain": 3}.get(item["priority"], 4),
+            item["mastery"],
+            -item["attempts"],
+            item["topic"].lower()
+        )
+    )
+    return recs[:8]
+
+
 # ─────────────────────────────────────────────
 # AI RESPONSE CLEANER
 # ─────────────────────────────────────────────
@@ -1222,7 +1317,12 @@ def dashboard():
         topic_counts=topic_counts,
         chart_labels=chart_labels,
         chart_scores=chart_scores,
-        topic_recommendations=TOPIC_RECOMMENDATIONS,
+        dashboard_recommendations=build_dashboard_recommendations(
+            topic_mastery,
+            knowledge_gaps,
+            topic_counts,
+            question_summary
+        ),
         question_summary=question_summary,
         topic_mastery=topic_mastery,
         knowledge_gaps=knowledge_gaps,
