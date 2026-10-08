@@ -196,8 +196,8 @@
         {% endif %}
     </div>
 
-    {% if plan and plan['items'] %}
-        {% for item in plan['items'] %}
+    {% if plan and plan.items %}
+        {% for item in plan.items %}
         <div class="day-card {% if item['status'] == 'completed' %}completed{% endif %}">
             <div class="day-top">
                 <div class="day-number">D{{ item['day_number'] }}</div>
