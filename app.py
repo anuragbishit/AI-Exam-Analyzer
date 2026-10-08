@@ -1705,6 +1705,12 @@ def submit_exam():
             session['student_id'],
             wrong_details
         )
+        for index, explanation in enumerate(explanations):
+            if index < len(wrong_details):
+                wrong_details[index]['ai_explanation'] = explanation.get('explanation', '')
+                wrong_details[index]['ai_concept'] = explanation.get('concept', '')
+                wrong_details[index]['ai_misconception'] = explanation.get('misconception', '')
+                wrong_details[index]['ai_generation_method'] = explanation.get('generation_method', '')
         conn.commit()
 
     percentage = round(score * 100 / len(questions))
