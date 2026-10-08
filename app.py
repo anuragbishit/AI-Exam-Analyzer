@@ -69,13 +69,18 @@ API_KEY = os.environ.get("GEMINI_API_KEY")
 # Bound every Gemini HTTP request so a stalled network/model request cannot
 # leave the Flask page spinning forever. HttpOptions applies to client requests.
 try:
-    GEMINI_TIMEOUT_MS = int(os.environ.get("GEMINI_TIMEOUT_MS", "15000"))
+    GEMINI_TIMEOUT_MS = int(os.environ.get("GEMINI_TIMEOUT_MS", "10000"))
 except (TypeError, ValueError):
-    GEMINI_TIMEOUT_MS = 15000
+    GEMINI_TIMEOUT_MS = 10000
 
+# Disable the SDK's own multi-attempt retry loop. Our application controls
+# model fallback explicitly so a request has a predictable upper bound.
 client = genai.Client(
     api_key=API_KEY,
-    http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS)
+    http_options=types.HttpOptions(
+        timeout=GEMINI_TIMEOUT_MS,
+        retry_options=types.HttpRetryOptions(attempts=1)
+    )
 )
 
 
@@ -568,7 +573,7 @@ def clean_ai_response(text):
 # ─────────────────────────────────────────────
 
 def generate_ai_content(prompt):
-    """Generate AI content with fast fallback across currently supported Gemini Flash models."""
+    """Generate structured Gemini content with bounded latency and explicit fallback."""
     import time
 
     # Prefer the high-capacity, cost-efficient Flash-Lite model first.
@@ -585,18 +590,27 @@ def generate_ai_content(prompt):
         model = models[attempt]
 
         try:
+            started_at = time.monotonic()
             print(
                 f"AI generation attempt {attempt + 1}/{len(models)} "
-                f"using {model} (timeout={GEMINI_TIMEOUT_MS}ms)"
+                f"using {model} (timeout={GEMINI_TIMEOUT_MS}ms, retries=1, thinking=low)"
             )
 
             response = client.models.generate_content(
                 model=model,
-                contents=prompt
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    max_output_tokens=8192,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level="low"
+                    )
+                )
             )
 
+            elapsed_ms = round((time.monotonic() - started_at) * 1000)
             if response and getattr(response, "text", None):
-                print(f"AI generation succeeded using {model}")
+                print(f"AI generation succeeded using {model} in {elapsed_ms}ms")
                 return response.text
 
             last_error = Exception(f"Empty AI response from {model}")
@@ -615,7 +629,8 @@ def generate_ai_content(prompt):
                 or "timed out" in message
             )
 
-            print(f"AI generation failed on {model}: {e}")
+            elapsed_ms = round((time.monotonic() - started_at) * 1000)
+            print(f"AI generation failed on {model} after {elapsed_ms}ms: {e}")
 
             if not transient:
                 raise
