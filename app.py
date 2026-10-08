@@ -573,74 +573,128 @@ def clean_ai_response(text):
 # ─────────────────────────────────────────────
 
 def generate_ai_content(prompt):
-    """Generate structured Gemini content with bounded latency and explicit fallback."""
+    """Generate Gemini content through a bounded REST request with explicit model fallback."""
     import time
+    import requests
 
-    # Prefer the high-capacity, cost-efficient Flash-Lite model first.
-    # Fall back to newer Flash models when a model is temporarily busy.
+    if not API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
+
     models = [
         "gemini-3.5-flash-lite",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
     ]
 
+    timeout_seconds = max(5, GEMINI_TIMEOUT_MS / 1000.0)
     last_error = None
 
-    for attempt in range(len(models)):
-        model = models[attempt]
+    generation_config = {
+        "responseMimeType": "application/json",
+        "maxOutputTokens": 8192,
+        "thinkingConfig": {
+            "thinkingLevel": "low"
+        }
+    }
+
+    for attempt, model in enumerate(models, 1):
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent"
+        )
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": str(prompt)
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": generation_config
+        }
+
+        started_at = time.monotonic()
+
+        print(
+            f"AI generation attempt {attempt}/{len(models)} using {model} "
+            f"(hard timeout={timeout_seconds:.1f}s, thinking=low)"
+        )
 
         try:
-            started_at = time.monotonic()
-            print(
-                f"AI generation attempt {attempt + 1}/{len(models)} "
-                f"using {model} (timeout={GEMINI_TIMEOUT_MS}ms, retries=1, thinking=low)"
-            )
-
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    max_output_tokens=8192,
-                    thinking_config=types.ThinkingConfig(
-                        thinking_level="low"
-                    )
-                )
+            response = requests.post(
+                url,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": API_KEY,
+                },
+                json=payload,
+                timeout=timeout_seconds,
             )
 
             elapsed_ms = round((time.monotonic() - started_at) * 1000)
-            if response and getattr(response, "text", None):
-                print(f"AI generation succeeded using {model} in {elapsed_ms}ms")
-                return response.text
+            response_text = response.text
 
-            last_error = Exception(f"Empty AI response from {model}")
+            if response.ok:
+                body = response.json()
+                candidates = body.get("candidates") or []
+                if candidates:
+                    parts = (
+                        candidates[0]
+                        .get("content", {})
+                        .get("parts", [])
+                    )
+                    generated = "".join(
+                        str(part.get("text", ""))
+                        for part in parts
+                        if isinstance(part, dict) and part.get("text") is not None
+                    ).strip()
+
+                    if generated:
+                        print(
+                            f"AI generation succeeded using {model} "
+                            f"in {elapsed_ms}ms"
+                        )
+                        return generated
+
+                raise RuntimeError("Gemini returned no generated text")
+
+            # Read Google's error payload without exposing the API key.
+            try:
+                error_body = response.json()
+                error_message = (
+                    error_body.get("error", {}).get("message")
+                    or response_text[:500]
+                )
+            except ValueError:
+                error_message = response_text[:500]
+
+            raise RuntimeError(
+                f"HTTP {response.status_code}: {error_message}"
+            )
+
+        except requests.Timeout as e:
+            last_error = e
+            print(
+                f"AI generation timed out on {model} after "
+                f"{timeout_seconds:.1f}s"
+            )
+
+        except requests.RequestException as e:
+            last_error = e
+            print(f"AI network error on {model}: {e}")
 
         except Exception as e:
             last_error = e
-            message = str(e).lower()
+            print(f"AI generation failed on {model}: {e}")
 
-            transient = (
-                "503" in message
-                or "429" in message
-                or "unavailable" in message
-                or "high demand" in message
-                or "quota" in message
-                or "timeout" in message
-                or "timed out" in message
-            )
+        # A model failure should never block the remaining fallback models.
+        if attempt < len(models):
+            time.sleep(1)
 
-            elapsed_ms = round((time.monotonic() - started_at) * 1000)
-            print(f"AI generation failed on {model} after {elapsed_ms}ms: {e}")
+    raise last_error or RuntimeError("Gemini AI generation failed")
 
-            if not transient:
-                raise
-
-            # Give the next model a small delay, but do not keep the browser
-            # waiting through a long retry loop.
-            if attempt < len(models) - 1:
-                time.sleep(2)
-
-    raise last_error or Exception("Gemini AI generation failed")
 
 # ─────────────────────────────────────────────
 # AI QUESTION VALIDATOR
