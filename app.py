@@ -429,7 +429,7 @@ def clean_ai_response(text):
 # ─────────────────────────────────────────────
 
 def generate_ai_content(prompt):
-    """Generate Gemini content with a hard network timeout and explicit fallback."""
+    """Generate Gemini content with a hard timeout and explicit model fallback."""
     import time
     import requests
 
@@ -438,7 +438,8 @@ def generate_ai_content(prompt):
             "GEMINI_API_KEY is not configured. Add it to your .env file."
         )
 
-    # Prefer the current Flash-Lite endpoint for speed, then fall back.
+    # Gemini 3.5 Flash-Lite is optimized for low-latency, high-throughput work.
+    # Fall back to stable Flash models if it is unavailable.
     models = [
         "gemini-3.5-flash-lite",
         "gemini-3.8-flash",
@@ -479,9 +480,10 @@ def generate_ai_content(prompt):
         }
 
         started = time.monotonic()
+
         print(
-            f"AI generation attempt {attempt}/{len(models)} "
-            f"using {model} (timeout={timeout_seconds:.1f}s)"
+            f"AI generation attempt {attempt}/{len(models)} using {model} "
+            f"(timeout={timeout_seconds:.1f}s, thinking=low)"
         )
 
         try:
@@ -498,9 +500,14 @@ def generate_ai_content(prompt):
             elapsed_ms = round((time.monotonic() - started) * 1000)
 
             if response.ok:
-                body = response.json()
-                candidates = body.get("candidates") or []
+                try:
+                    body = response.json()
+                except ValueError as error:
+                    raise RuntimeError(
+                        f"Gemini returned invalid JSON: {error}"
+                    )
 
+                candidates = body.get("candidates") or []
                 if not candidates:
                     raise RuntimeError("Gemini returned no candidates")
 
@@ -535,9 +542,8 @@ def generate_ai_content(prompt):
             except ValueError:
                 error_message = response.text[:500]
 
-            status = response.status_code
             raise RuntimeError(
-                f"Gemini HTTP {status}: {error_message}"
+                f"Gemini HTTP {response.status_code}: {error_message}"
             )
 
         except requests.Timeout:
@@ -565,7 +571,7 @@ def generate_ai_content(prompt):
             time.sleep(1)
 
     raise RuntimeError(
-        "Gemini could not generate content after trying all configured models."
+        "Gemini could not generate content after all configured models were tried."
     )
 
 
