@@ -129,18 +129,28 @@
     <div class="plan-hero">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
             <div>
-                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;">Phase 2 · Step 6B</div>
-                <h2 style="font-size:24px;margin-bottom:6px;">AI Personalized Study Plan</h2>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:7px;">Phase 2 · Step 6C</div>
+                <h2 style="font-size:24px;margin-bottom:6px;">Adaptive AI Study Plan</h2>
                 <p style="font-size:13px;color:var(--muted);line-height:1.55;max-width:650px;">
-                    This plan is generated from your stored topic mastery and concept-level knowledge gaps using Gemini AI. The database-backed 6A progress system remains active.
+                    This plan adapts its unfinished days when your latest exam performance changes. Completed days stay locked, while Gemini AI or the deterministic fallback recalculates the remaining work.
                 </p>
             </div>
-            <form method="POST" action="/study_plan/generate">
-                <button class="btn btn-primary" type="submit">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    {% if plan %}Generate New AI Plan{% else %}Generate My AI Plan{% endif %}
-                </button>
-            </form>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <form method="POST" action="/study_plan/generate">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        {% if plan %}Generate New AI Plan{% else %}Generate My AI Plan{% endif %}
+                    </button>
+                </form>
+                {% if plan and plan.status == 'active' and plan.completed_items < plan.total_items %}
+                <form method="POST" action="/study_plan/adapt">
+                    <button class="btn" type="submit" style="border:1px solid rgba(16,185,129,.35);background:rgba(16,185,129,.08);color:#10b981;">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                        Adapt Remaining Days
+                    </button>
+                </form>
+                {% endif %}
+            </div>
         </div>
 
         {% if plan %}
@@ -159,6 +169,29 @@
         </div>
         <div class="progress-track">
             <div class="progress-fill" style="width:{{ plan.progress_percent }}%;"></div>
+        </div>
+        {% endif %}
+
+        {% if plan and plan.adaptation_count %}
+        <div class="panel" style="margin-top:16px;border-color:rgba(16,185,129,.22);background:rgba(16,185,129,.04);">
+            <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;flex-wrap:wrap;">
+                <div>
+                    <div class="panel-title" style="margin-bottom:5px;">
+                        <i class="fa-solid fa-arrows-rotate" style="color:#10b981;"></i>
+                        Adaptive Learning Active
+                    </div>
+                    <p style="margin:0;color:var(--muted);font-size:12px;line-height:1.5;">
+                        {{ plan.adaptation_count }} adaptation{{ '' if plan.adaptation_count == 1 else 's' }} applied
+                        {% if plan.last_adapted_at %} · Last updated {{ plan.last_adapted_at }}{% endif %}
+                    </p>
+                    {% if plan.last_adaptation_reason %}
+                    <p style="margin:8px 0 0;color:var(--muted);font-size:12px;">
+                        <strong style="color:var(--text);">Why:</strong> {{ plan.last_adaptation_reason }}
+                    </p>
+                    {% endif %}
+                </div>
+                <span class="badge badge-green"><i class="fa-solid fa-lock"></i>&nbsp; Completed days protected</span>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -201,6 +234,34 @@
             </form>
         </div>
         {% endfor %}
+
+        {% if adaptations %}
+        <div class="panel" style="margin-top:20px;">
+            <div class="panel-title">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                Recent Adaptation History
+            </div>
+            <div style="display:grid;gap:10px;">
+                {% for event in adaptations %}
+                <div style="padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--bg-soft,rgba(255,255,255,.02));">
+                    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;">
+                        <strong style="color:var(--text);">
+                            {{ event['trigger_type'].replace('_', ' ').title() }}
+                            · {{ event['generation_method'].replace('_', ' ').title() }}
+                        </strong>
+                        <span style="color:var(--muted);">{{ event['created_at'] }}</span>
+                    </div>
+                    <div style="margin-top:7px;color:var(--muted);font-size:12px;">
+                        Changed pending days: {{ event['changed_days'] or 'None' }}
+                    </div>
+                    <div style="margin-top:5px;color:var(--muted);font-size:12px;">
+                        {{ event['reason'] }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     {% else %}
         <div class="panel" style="text-align:center;padding:60px 24px;">
             <i class="fa-solid fa-calendar-check" style="font-size:42px;color:var(--accent);margin-bottom:14px;"></i>
@@ -210,7 +271,7 @@
             </p>
             <form method="POST" action="/study_plan/generate">
                 <button class="btn btn-primary" type="submit">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Build 7-Day Draft Plan
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Build 7-Day AI Plan
                 </button>
             </form>
         </div>
