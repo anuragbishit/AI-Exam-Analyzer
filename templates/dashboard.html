@@ -575,12 +575,15 @@
 
             <div class="panel-title">
                 <i class="fa-solid fa-lightbulb"></i>
-                Recommendations
+                Personalized Recommendations
             </div>
 
+            {% if dashboard_recommendations %}
             {% if topic_counts %}
             <div style="margin-bottom:16px;padding:14px;border:1px solid rgba(59,130,246,.22);border-radius:12px;background:rgba(59,130,246,.06);">
-                <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">AI practice is available for your recent weak topics.</div>
+                <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+                    Recommendations are calculated from your current mastery, recent accuracy, knowledge gaps, response time, and mistake history.
+                </div>
                 <form method="POST" action="/practice_from_mistakes">
                     <button class="btn btn-primary" type="submit">
                         <i class="fa-solid fa-bolt"></i> Practice My Weak Areas
@@ -589,65 +592,49 @@
             </div>
             {% endif %}
 
-            {% if topic_counts %}
-
-            {% set found = namespace(any=false) %}
-
-            {% for topic in topic_counts.keys() %}
-
-            {% set found.any = true %}
-
+            {% for rec in dashboard_recommendations %}
             <div class="rec-card">
+                <div style="min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                        <h4 style="margin:0;">{{ rec.topic }}</h4>
+                        <span class="badge {% if rec.priority == 'Critical' %}badge-red{% elif rec.priority == 'High' %}badge-red{% elif rec.priority == 'Medium' %}badge-amber{% else %}badge-green{% endif %}">
+                            {{ rec.priority }}
+                        </span>
+                    </div>
 
-                <div>
-                    <h4>{{ topic }}</h4>
-                    <p>
-                        {% if topic in topic_recommendations %}
-                        {{ topic_recommendations[topic] }}
-                        {% else %}
-                        Review fundamental concepts of {{ topic }} and practice related problems.
-                        {% endif %}
-                    </p>
+                    {% if rec.subtopic %}
+                    <div style="font-size:11px;color:var(--muted);margin-bottom:7px;">
+                        Focus concept: <strong style="color:var(--text);">{{ rec.subtopic }}</strong>
+                    </div>
+                    {% endif %}
+
+                    <p style="margin-bottom:8px;">{{ rec.action }}</p>
+
+                    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+                        Mastery {{ rec.mastery }}% · Accuracy {{ rec.accuracy }}% · Recent {{ rec.recent_accuracy }}% ·
+                        {{ rec.attempts }} attempt{{ 's' if rec.attempts != 1 else '' }} ·
+                        Avg time {{ rec.avg_response_time }}s
+                    </div>
+
+                    <div style="font-size:11px;color:var(--muted);margin-top:5px;">
+                        <strong style="color:var(--text);">Evidence:</strong> {{ rec.evidence }}
+                    </div>
                 </div>
 
                 <div class="rec-badge">
-                    Study
+                    {% if rec.priority == 'Critical' %}Act now{% elif rec.priority == 'High' %}Priority{% elif rec.priority == 'Medium' %}Practice{% else %}Maintain{% endif %}
                 </div>
-
             </div>
-
             {% endfor %}
 
-            {% if not found.any %}
-
-            <div class="empty-state">
-
-                <i class="fa-solid fa-star" style="color:#f59e0b;">
-                </i>
-
-                <p>No specific recommendations at this time.</p>
-
-            </div>
-
-            {% endif %}
-
             {% else %}
-
             <div class="empty-state">
-
-                <i class="fa-solid fa-star" style="color:#f59e0b;">
-                </i>
-
-                <p>
-                    Take an exam to get personalized recommendations.
-                </p>
-
+                <i class="fa-solid fa-chart-line" style="color:#3b82f6;"></i>
+                <p>Take an exam to generate personalized recommendations from your actual performance data.</p>
                 <a href="/exam" class="btn btn-primary" style="margin-top:16px;">
                     Take Exam
                 </a>
-
             </div>
-
             {% endif %}
 
         </div>
