@@ -429,59 +429,145 @@ def clean_ai_response(text):
 # ─────────────────────────────────────────────
 
 def generate_ai_content(prompt):
-    """Generate AI content with fast fallback across currently supported Gemini Flash models."""
+    """Generate Gemini content with a hard network timeout and explicit fallback."""
     import time
+    import requests
 
-    # Prefer the high-capacity, cost-efficient Flash-Lite model first.
-    # Fall back to newer Flash models when a model is temporarily busy.
+    if not API_KEY:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. Add it to your .env file."
+        )
+
+    # Prefer the current Flash-Lite endpoint for speed, then fall back.
     models = [
         "gemini-3.5-flash-lite",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
     ]
 
-    last_error = None
+    try:
+        timeout_seconds = max(
+            5.0,
+            float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "12"))
+        )
+    except (TypeError, ValueError):
+        timeout_seconds = 12.0
 
-    for attempt in range(len(models)):
-        model = models[attempt]
+    for attempt, model in enumerate(models, start=1):
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent"
+        )
+
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": str(prompt)
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json",
+                "maxOutputTokens": 8192,
+                "thinkingConfig": {
+                    "thinkingLevel": "low"
+                }
+            }
+        }
+
+        started = time.monotonic()
+        print(
+            f"AI generation attempt {attempt}/{len(models)} "
+            f"using {model} (timeout={timeout_seconds:.1f}s)"
+        )
 
         try:
-            print(f"AI generation attempt {attempt + 1}/{len(models)} using {model}")
-
-            response = client.models.generate_content(
-                model=model,
-                contents=prompt
+            response = requests.post(
+                url,
+                headers={
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": API_KEY,
+                },
+                json=payload,
+                timeout=timeout_seconds,
             )
 
-            if response and getattr(response, "text", None):
-                print(f"AI generation succeeded using {model}")
-                return response.text
+            elapsed_ms = round((time.monotonic() - started) * 1000)
 
-            last_error = Exception(f"Empty AI response from {model}")
+            if response.ok:
+                body = response.json()
+                candidates = body.get("candidates") or []
 
-        except Exception as e:
-            last_error = e
-            message = str(e).lower()
+                if not candidates:
+                    raise RuntimeError("Gemini returned no candidates")
 
-            transient = (
-                "503" in message
-                or "429" in message
-                or "unavailable" in message
-                or "high demand" in message
-                or "quota" in message
+                parts = (
+                    candidates[0]
+                    .get("content", {})
+                    .get("parts", [])
+                )
+
+                generated = "".join(
+                    str(part.get("text", ""))
+                    for part in parts
+                    if isinstance(part, dict)
+                    and part.get("text") is not None
+                ).strip()
+
+                if generated:
+                    print(
+                        f"AI generation succeeded using {model} "
+                        f"in {elapsed_ms}ms"
+                    )
+                    return generated
+
+                raise RuntimeError("Gemini returned empty generated text")
+
+            try:
+                error_body = response.json()
+                error_message = (
+                    error_body.get("error", {}).get("message")
+                    or response.text[:500]
+                )
+            except ValueError:
+                error_message = response.text[:500]
+
+            status = response.status_code
+            raise RuntimeError(
+                f"Gemini HTTP {status}: {error_message}"
             )
 
-            print(f"AI generation failed on {model}: {e}")
+        except requests.Timeout:
+            elapsed_ms = round((time.monotonic() - started) * 1000)
+            print(
+                f"AI generation timed out on {model} "
+                f"after {elapsed_ms}ms"
+            )
 
-            if not transient:
-                raise
+        except requests.RequestException as error:
+            elapsed_ms = round((time.monotonic() - started) * 1000)
+            print(
+                f"AI network error on {model} "
+                f"after {elapsed_ms}ms: {error}"
+            )
 
-            # Give the next model a small delay, but do not keep the browser
-            # waiting through a long retry loop.
-            if attempt < len(models) - 1:
-                time.sleep(2)
+        except Exception as error:
+            elapsed_ms = round((time.monotonic() - started) * 1000)
+            print(
+                f"AI generation failed on {model} "
+                f"after {elapsed_ms}ms: {error}"
+            )
 
-    raise last_error or Exception("Gemini AI generation failed")
+        if attempt < len(models):
+            time.sleep(1)
+
+    raise RuntimeError(
+        "Gemini could not generate content after trying all configured models."
+    )
+
 
 # ─────────────────────────────────────────────
 # AI QUESTION VALIDATOR
